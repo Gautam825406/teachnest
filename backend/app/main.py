@@ -18,6 +18,7 @@ from .routers import (
     orders,
     roles,
     settings,
+    student,
     students,
     teachers,
     test_series,
@@ -34,7 +35,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="TeachNest API (Phase 2)", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="TeachNest API (Phase 3)", version="3.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -75,3 +76,5 @@ app.include_router(test_series.router, prefix="/api")
 app.include_router(assignments.router, prefix="/api")
 app.include_router(content.router, prefix="/api")
 app.include_router(engagement.router, prefix="/api")
+# Phase 3 (student mobile API)
+app.include_router(student.router, prefix="/api")

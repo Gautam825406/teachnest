@@ -228,11 +228,53 @@ and `backend/README.md`.
   TeachNest AI is a status-only card in Phase 2
 - Real WhatsApp integration (status-only card in Phase 2)
 
-## Phase 3 (not started)
+## Phase 3 — Student mobile app (built 20 Nov 2026, local only — NOT pushed to GitHub, NOT deployed live)
 
-White-label student mobile app (React Native + Expo, one codebase rebranded
-per institute): mobile OTP login/register, course browsing + purchase,
-recorded + live classes, tests, notes/e-books, push notifications.
+White-label student app in `mobile/` (React Native + Expo SDK 54, TypeScript,
+Expo Router). One codebase, rebranded per institute from the single config
+`mobile/config/brand.ts` (appName, instituteName, orgCode, tagline, colours)
++ `mobile/app.json` name/slug — demo config is Demo Academy, orgCode
+`DEMO0001`, deep indigo theme. See `mobile/README.md` for the full rebrand
+steps and how to run (Expo Go / emulator).
+
+- **Student auth** — phone + OTP, demo OTP **`123456`** (no real SMS; the
+  OTP screen says so). New endpoints under `/api/student/*` (see
+  `backend/app/routers/student.py`): request-otp, verify (creates the
+  student in the tenant on first registration; the student then appears in
+  the admin panel's Student Directory), student JWT (`sub: "student:<id>"`,
+  separate from admin tokens — admin tokens are rejected on student routes).
+- **Screens (all English, no mock data)** — Home (banners, featured courses,
+  test series, current affairs, jobs, toppers, testimonials), Courses
+  (browse/search/detail + demo purchase), Learn (recorded YouTube videos,
+  notes, syllabus, previous papers, e-books), Tests (one question at a
+  time, timer, submit, result + Score Sheet), Live (seminars + Join Live
+  Class — clearly labelled DEMO, no real video yet), Assignments (video
+  text submit + test submit, submissions/scores), Profile (My Courses,
+  My Orders, Notifications, Help & Support enquiry, Settings, Logout).
+- **Demo purchase only** — Buy Now creates a SUCCESS order with a
+  `DEMO-<id>` transaction id and grants access; labelled "Demo purchase —
+  no real payment" in the app. No real Razorpay, no real OTP SMS, no real
+  live-class video, no real push (notifications list in-app only).
+- **Demo student login** — org code `DEMO0001`, any 10-digit mobile
+  (e.g. `9876500001` = seeded student Aarav Sharma), OTP `123456`, name
+  on first registration.
+- **Verification (20 Nov 2026, local)** — backend pytest **38 passed,
+  0 failed** (29 Phases 1–2 + 9 new Phase 3); `npx tsc --noEmit` exit 0;
+  `npx expo-doctor` 18/18; `npx expo export --platform android
+  --no-bytecode` exit 0. Local API flows verified end-to-end against a
+  fresh seeded backend: request-otp 200, verify 200 (token 203 chars),
+  courses 200 (total 5), notes 200 (total 3), test-series detail 200
+  (3 questions, no correct answers leaked), attempt 200 (3.0/3.0),
+  scores 200, demo purchase 200 (SUCCESS, `DEMO-F41EF8D9`), my-courses
+  200, home 200, bad token 401.
+- **Not live yet** — the Phase 3 student API is NOT on the live backend:
+  `GET https://teachnest-api.onrender.com/api/student/home` returns 404
+  until the Phase 3 code is pushed and Render redeploys. The app defaults
+  to the live URL, so use `EXPO_PUBLIC_API_URL=http://localhost:8000/api`
+  (or `http://10.0.2.2:8000/api` on an Android emulator) to test locally.
+  Plain `npx expo export` (all platforms incl. web) fails — `react-native-web`
+  is not installed; Hermes bytecode export fails in this VM's hermesc on
+  React Native's own files (toolchain issue, not app code).
 
 ## Phase 4 (not started)
 

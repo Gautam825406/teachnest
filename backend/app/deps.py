@@ -4,7 +4,7 @@ from jose import JWTError
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import Tenant, User
+from .models import Student, Tenant, User
 from .security import decode_token
 
 _bearer = HTTPBearer(auto_error=False)
@@ -26,6 +26,38 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     return user
+
+
+def get_current_student(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> Student:
+    """Student auth (Phase 3): JWT with sub == "student:<id>", role "student".
+
+    Admin (User) tokens have a numeric sub and no "student" role, so they
+    are rejected here with 401.
+    """
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    try:
+        payload = decode_token(credentials.credentials)
+        sub = payload.get("sub", "")
+        if not isinstance(sub, str) or not sub.startswith("student:"):
+            raise ValueError("not a student token")
+        student_id = int(sub.split(":", 1)[1])
+        tenant_id = int(payload.get("tenant_id"))
+        if payload.get("role") != "student":
+            raise ValueError("not a student token")
+    except (JWTError, TypeError, ValueError, AttributeError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    student = (
+        db.query(Student)
+        .filter(Student.id == student_id, Student.tenant_id == tenant_id)
+        .first()
+    )
+    if student is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return student
 
 
 def get_tenant(db: Session, tenant_id: int) -> Tenant:
