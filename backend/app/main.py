@@ -20,7 +20,12 @@ app = FastAPI(title="TeachNest API (Phase 1)", version="1.0.0", lifespan=lifespa
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN, "http://localhost:3000"],
+    allow_origins=[
+        FRONTEND_ORIGIN,
+        "http://localhost:3000",
+        "https://teachnest.vercel.app",
+        "https://teachnest-eight.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
