@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from ..course_log import log_course_event
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Course, User
@@ -41,6 +42,9 @@ def create_course(payload: CourseCreate, user: User = Depends(get_current_user),
     db.add(course)
     db.commit()
     db.refresh(course)
+    log_course_event(db, tenant_id=user.tenant_id, action="COURSE_CREATED",
+                     course_id=course.id, course_title=course.title, user_id=user.id,
+                     details=f"Course '{course.title}' created")
     return course
 
 
@@ -56,12 +60,21 @@ def update_course(course_id: int, payload: CourseUpdate, user: User = Depends(ge
         setattr(course, field, value)
     db.commit()
     db.refresh(course)
+    log_course_event(db, tenant_id=user.tenant_id, action="COURSE_UPDATED",
+                     course_id=course.id, course_title=course.title, user_id=user.id,
+                     details=f"Course '{course.title}' updated")
     return course
 
 
 @router.delete("/{course_id}", status_code=204)
 def delete_course(course_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     course = _get_or_404(db, user.tenant_id, course_id)
+    title = course.title
+    # Log with course_id=None: the CourseLog FK points at courses, so a log
+    # referencing the course would block the delete itself on Postgres.
+    log_course_event(db, tenant_id=user.tenant_id, action="COURSE_DELETED",
+                     course_id=None, course_title=title, user_id=user.id,
+                     details=f"Course '{title}' (id {course_id}) deleted")
     db.delete(course)
     db.commit()
     return None

@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import Order, User
-from ..schemas import OrderOut, PaginatedOrders
+from ..models import Order, Student, User
+from ..schemas import OrderOut, OrderRefundRequest, OrderTransferRequest, PaginatedOrders
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -59,6 +59,72 @@ def export_orders(user: User = Depends(get_current_user), db: Session = Depends(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=orders.csv"},
     )
+
+
+
+@router.get("/deactivated", response_model=PaginatedOrders)
+def list_deactivated_orders(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Order).filter(Order.tenant_id == user.tenant_id, Order.status == "DEACTIVATED")
+    total = q.count()
+    items = q.order_by(Order.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    return {"items": items, "total": total}
+
+
+@router.get("/company", response_model=PaginatedOrders)
+def list_company_orders(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Company Orders view: all orders for the tenant (same as All Orders).
+    q = db.query(Order).filter(Order.tenant_id == user.tenant_id)
+    total = q.count()
+    items = q.order_by(Order.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    return {"items": items, "total": total}
+
+
+@router.post("/{order_id}/transfer", response_model=OrderOut)
+def transfer_order(order_id: int, payload: OrderTransferRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    order = db.query(Order).filter(Order.id == order_id, Order.tenant_id == user.tenant_id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    target = db.query(Student).filter(Student.id == payload.to_student_id, Student.tenant_id == user.tenant_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+    order.student_id = target.id
+    order.student_name = target.name
+    order.contact = target.phone
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+@router.post("/{order_id}/refund", response_model=OrderOut)
+def refund_order(order_id: int, payload: OrderRefundRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    order = db.query(Order).filter(Order.id == order_id, Order.tenant_id == user.tenant_id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order.status = "REFUNDED"
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+@router.post("/{order_id}/deactivate", response_model=OrderOut)
+def deactivate_order(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    order = db.query(Order).filter(Order.id == order_id, Order.tenant_id == user.tenant_id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order.status = "DEACTIVATED"
+    db.commit()
+    db.refresh(order)
+    return order
 
 
 @router.get("/{order_id}", response_model=OrderOut)

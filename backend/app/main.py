@@ -1,11 +1,29 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .config import FRONTEND_ORIGIN
 from .database import Base, engine
-from .routers import auth, categories, courses, dashboard, orders, roles, settings, students, teachers
+from .routers import (
+    assignments,
+    auth,
+    categories,
+    content,
+    courses,
+    dashboard,
+    engagement,
+    orders,
+    roles,
+    settings,
+    students,
+    teachers,
+    test_series,
+    uploads,
+)
+from .routers.uploads import UPLOAD_DIR
 from .seed import seed
 
 
@@ -16,7 +34,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="TeachNest API (Phase 1)", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="TeachNest API (Phase 2)", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +48,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Uploaded files (Phase 2 #1): local-disk store, served at /uploads/<tenant_id>/<file>.
+# See backend/README.md for the S3/R2 switch.
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 @app.get("/api/health")
@@ -46,3 +69,9 @@ app.include_router(students.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 app.include_router(roles.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
+# Phase 2
+app.include_router(uploads.router, prefix="/api")
+app.include_router(test_series.router, prefix="/api")
+app.include_router(assignments.router, prefix="/api")
+app.include_router(content.router, prefix="/api")
+app.include_router(engagement.router, prefix="/api")

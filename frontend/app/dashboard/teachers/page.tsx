@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch, type Category, type Teacher } from "@/lib/api";
+import { apiFetch, uploadFile, type Category, type Teacher } from "@/lib/api";
 import { Badge, BannerHeader, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Modal, Textarea } from "@/components/ui";
 
 interface TeacherForm {
@@ -23,6 +23,20 @@ export default function TeachersPage() {
   const [form, setForm] = useState<TeacherForm>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  async function handlePhoto(file: File) {
+    setUploadingPhoto(true);
+    setFormError(null);
+    try {
+      const up = await uploadFile(file);
+      set("photo_url", up.url);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "Photo upload failed. Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -142,15 +156,16 @@ export default function TeachersPage() {
             <div className="sm:col-span-2"><Field label="Detailed Biography / Description"><Textarea rows={4} value={form.biography} onChange={(e) => set("biography", e.target.value)} /></Field></div>
             <div className="sm:col-span-2">
               <Field label="Profile Photo" hint="JPG, PNG or WEBP, max 2 MB. Square avatar recommended.">
-                <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) set("photo_url", f.name); }} />
-                {form.photo_url && <p className="mt-1 text-xs text-slate-500">Selected: {form.photo_url}</p>}
+                <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handlePhoto(f); }} />
+                {uploadingPhoto && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
+                {form.photo_url && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {form.photo_url}</p>}
               </Field>
             </div>
           </div>
           <ErrorBox message={formError} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={busy}>{busy ? "Saving..." : editing ? "Update Teacher" : "Create Teacher"}</Button>
+            <Button type="submit" disabled={busy || uploadingPhoto}>{busy ? "Saving..." : editing ? "Update Teacher" : "Create Teacher"}</Button>
           </div>
         </form>
       </Modal>

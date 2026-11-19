@@ -223,3 +223,185 @@ export function formatDate(d?: string | null): string {
 export function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
+
+/* ---------------- Phase 2: shared helpers ---------------- */
+
+export interface UploadResult {
+  url: string;
+  filename: string;
+  size_bytes?: number;
+  content_type?: string;
+}
+
+/** Upload one file via POST /api/uploads (multipart field "file"). */
+export async function uploadFile(file: File): Promise<UploadResult> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("file", file);
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/uploads`, { method: "POST", headers, body: form });
+  if (res.status === 401) {
+    clearAuth();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) window.location.href = "/login";
+    throw new ApiError(401, "Session has expired. Please log in again.");
+  }
+  if (!res.ok) {
+    let msg = `Upload failed (${res.status})`;
+    try {
+      const data = await res.json();
+      msg = (data as { detail?: string; message?: string }).detail || (data as { detail?: string; message?: string }).message || msg;
+    } catch { /* keep default */ }
+    throw new ApiError(res.status, msg);
+  }
+  return (await res.json()) as UploadResult;
+}
+
+/** File URLs returned by the API may be relative ("/uploads/..."); make them absolute. */
+export function resolveFileUrl(url?: string | null): string {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  const origin = API_BASE.replace(/\/api$/, "");
+  return `${origin}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
+/** Normalise a list response that may be a bare array or {items, total}. */
+export function asList<T>(data: Paged<T> | T[] | undefined | null): { items: T[]; total: number } {
+  if (Array.isArray(data)) return { items: data, total: data.length };
+  return { items: data?.items || [], total: data?.total ?? (data?.items || []).length };
+}
+
+export type AnyRecord = Record<string, unknown>;
+export const idOf = (r: AnyRecord): string => String(r.id ?? "");
+export const strOf = (r: AnyRecord, ...keys: string[]): string => {
+  for (const k of keys) {
+    const v = r[k];
+    if (v !== undefined && v !== null && v !== "") return String(v);
+  }
+  return "—";
+};
+
+/* ---------------- Phase 2: entity types ---------------- */
+
+export interface TestSeries { id: number | string; title: string; description?: string; category?: string; price?: number; validity_days?: number; [key: string]: unknown }
+export interface TestQuestion { id: number | string; chapter_test?: string; question_text: string; option_a?: string; option_b?: string; option_c?: string; option_d?: string; correct_option?: string; marks?: number; negative_marks?: number; [key: string]: unknown }
+export interface VideoAssignment { id: number | string; title: string; course_id?: number | string; video_url?: string; description?: string; due_date?: string; [key: string]: unknown }
+export interface VideoSubmission { id: number | string; assignment_id?: number | string; student_id?: number | string; student_name?: string; marks?: number; feedback?: string; status?: string; [key: string]: unknown }
+export interface TestAssignment { id: number | string; title: string; test_series_id?: number | string; student_id?: number | string; due_date?: string; [key: string]: unknown }
+export interface StudentAssignment { id: number | string; test_assignment_id?: number | string; student_id?: number | string; score?: number; total_marks?: number; status?: string; [key: string]: unknown }
+export interface ScoreRow { student_id: number | string; student_name?: string; score?: number; total_marks?: number; [key: string]: unknown }
+export interface NoteItem { id: number | string; title: string; folder?: string; kind?: string; file_url?: string; description?: string; [key: string]: unknown }
+export interface PreviousPaper { id: number | string; title: string; exam_type_id?: number | string; year?: number; file_url?: string; [key: string]: unknown }
+export interface ExamType { id: number | string; name: string; [key: string]: unknown }
+export interface Ebook { id: number | string; title: string; author_id?: number | string; ebook_type_id?: number | string; price?: number; file_url?: string; cover_url?: string; [key: string]: unknown }
+export interface EbookType { id: number | string; name: string; [key: string]: unknown }
+export interface Author { id: number | string; name: string; bio?: string; [key: string]: unknown }
+export interface EbookBanner { id: number | string; title: string; image_url?: string; weight?: number; status?: string; [key: string]: unknown }
+export interface Seminar { id: number | string; title: string; description?: string; category?: string; scheduled_at?: string; meeting_url?: string; [key: string]: unknown }
+export interface Bundle { id: number | string; name: string; description?: string; price?: number; course_ids?: (number | string)[]; test_series_ids?: (number | string)[]; ebook_ids?: (number | string)[]; [key: string]: unknown }
+export interface YoutubePlaylistItem { id: number | string; video_id: string; title?: string; category?: string; [key: string]: unknown }
+export interface Lead { id: number | string; name: string; phone?: string; email?: string; source?: string; type?: string; status?: string; [key: string]: unknown }
+export interface Testimonial { id: number | string; student_name: string; text?: string; rating?: number; [key: string]: unknown }
+export interface Topper { id: number | string; student_id?: number | string; student_name?: string; exam?: string; rank?: number | string; score?: number; [key: string]: unknown }
+export interface BannerItem { id: number | string; name: string; image_url?: string; banner_type?: string; redirection_type?: string; redirection_value?: string; placement?: string; weight?: number; status?: string; popup?: boolean; [key: string]: unknown }
+export interface NotificationItem { id: number | string; title: string; body?: string; audience?: string; created_at?: string; [key: string]: unknown }
+export interface CurrentAffair { id: number | string; title: string; language?: string; content?: string; published_date?: string; [key: string]: unknown }
+export interface JobItem { id: number | string; title: string; thumbnail_url?: string; description?: string; [key: string]: unknown }
+export interface Coupon { id: number | string; code: string; discount_percent?: number; max_discount?: number; valid_from?: string; valid_to?: string; is_active?: boolean; [key: string]: unknown }
+export interface AppliedCoupon { id: number | string; code?: string; student_name?: string; order_id?: number | string; discount?: number; created_at?: string; [key: string]: unknown }
+export interface OtpUsage { id: number | string; otp?: string; mobile?: string; created_at?: string; [key: string]: unknown }
+export interface Enquiry { id: number | string; name: string; email?: string; phone?: string; message?: string; enquiry_type_id?: number | string; status?: string; [key: string]: unknown }
+export interface EnquiryType { id: number | string; name: string; [key: string]: unknown }
+export interface Integration { provider: string; name: string; status?: string; badge?: string; category?: string; description?: string; [key: string]: unknown }
+export interface AppUser { id: number | string; username: string; email?: string; role?: string; [key: string]: unknown }
+export interface CourseLog { id: number | string; course_id?: number | string; course_title?: string; action?: string; message?: string; created_at?: string; [key: string]: unknown }
+
+/* ---------------- Phase 2: typed resource helpers ---------------- */
+
+function resource<T>(base: string) {
+  return {
+    list: (query = "") => apiFetch<Paged<T> | T[]>(`${base}${query}`),
+    get: (id: number | string) => apiFetch<T>(`${base}/${id}`),
+    create: (body: unknown) => apiFetch<T>(base, { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number | string, body: unknown) => apiFetch<T>(`${base}/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: number | string) => apiFetch<void>(`${base}/${id}`, { method: "DELETE" }),
+  };
+}
+
+export const testSeriesApi = resource<TestSeries>("/test-series");
+export const videoAssignmentsApi = resource<VideoAssignment>("/video-assignments");
+export const testAssignmentsApi = resource<TestAssignment>("/test-assignments");
+export const studentAssignmentsApi = resource<StudentAssignment>("/test-assignments/student-assignments");
+export const notesApi = resource<NoteItem>("/notes");
+export const previousPapersApi = resource<PreviousPaper>("/previous-papers");
+export const examTypesApi = resource<ExamType>("/exam-types");
+export const ebooksApi = resource<Ebook>("/ebooks");
+export const ebookTypesApi = resource<EbookType>("/ebook-types");
+export const authorsApi = resource<Author>("/authors");
+export const ebookBannersApi = resource<EbookBanner>("/ebook-banners");
+export const seminarsApi = resource<Seminar>("/seminars");
+export const bundlesApi = resource<Bundle>("/bundles");
+export const youtubePlaylistsApi = resource<YoutubePlaylistItem>("/youtube-playlists");
+export const leadsApi = resource<Lead>("/leads");
+export const testimonialsApi = resource<Testimonial>("/testimonials");
+export const toppersApi = resource<Topper>("/toppers");
+export const bannersApi = resource<BannerItem>("/banners");
+export const notificationsApi = resource<NotificationItem>("/notifications");
+export const currentAffairsApi = resource<CurrentAffair>("/current-affairs");
+export const jobsApi = resource<JobItem>("/jobs");
+export const couponsApi = resource<Coupon>("/coupons");
+export const enquiriesApi = resource<Enquiry>("/enquiries");
+export const enquiryTypesApi = resource<EnquiryType>("/enquiry-types");
+export const usersApi = resource<AppUser>("/users");
+
+export const testSeriesQuestionsApi = {
+  list: (seriesId: number | string) => apiFetch<Paged<TestQuestion> | TestQuestion[]>(`/test-series/${seriesId}/questions`),
+  create: (seriesId: number | string, body: unknown) => apiFetch<TestQuestion>(`/test-series/${seriesId}/questions`, { method: "POST", body: JSON.stringify(body) }),
+  remove: (seriesId: number | string, qid: number | string) => apiFetch<void>(`/test-series/${seriesId}/questions/${qid}`, { method: "DELETE" }),
+};
+
+export const videoSubmissionsApi = {
+  list: (assignmentId?: string) => apiFetch<Paged<VideoSubmission> | VideoSubmission[]>(`/video-assignments/submissions${assignmentId ? `?assignment_id=${encodeURIComponent(assignmentId)}` : ""}`),
+  create: (body: unknown) => apiFetch<VideoSubmission>("/video-assignments/submissions", { method: "POST", body: JSON.stringify(body) }),
+  update: (id: number | string, body: unknown) => apiFetch<VideoSubmission>(`/video-assignments/submissions/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+};
+
+export const scoreSheetApi = {
+  get: (testSeriesId?: string, chapterTest?: string) => {
+    const q = new URLSearchParams();
+    if (testSeriesId) q.set("test_series_id", testSeriesId);
+    if (chapterTest) q.set("chapter_test", chapterTest);
+    return apiFetch<{ students: ScoreRow[] }>(`/score-sheet?${q.toString()}`);
+  },
+  save: (body: unknown) => apiFetch("/scores", { method: "POST", body: JSON.stringify(body) }),
+};
+
+export const otpUsageApi = {
+  list: (mobile?: string) => apiFetch<Paged<OtpUsage> | OtpUsage[]>(`/otp-usage${mobile ? `?mobile=${encodeURIComponent(mobile)}` : ""}`),
+};
+
+export const ordersActionsApi = {
+  transfer: (id: number | string, toStudentId: number | string) => apiFetch(`/orders/${id}/transfer`, { method: "POST", body: JSON.stringify({ to_student_id: toStudentId }) }),
+  refund: (id: number | string, reason: string) => apiFetch(`/orders/${id}/refund`, { method: "POST", body: JSON.stringify({ reason }) }),
+  deactivate: (id: number | string) => apiFetch(`/orders/${id}/deactivate`, { method: "POST", body: JSON.stringify({}) }),
+  deactivated: () => apiFetch<Paged<Order> | Order[]>("/orders/deactivated"),
+  company: () => apiFetch<Paged<Order> | Order[]>("/orders/company"),
+};
+
+export const integrationsApi = {
+  list: () => apiFetch<Integration[] | { items: Integration[] }>("/integrations"),
+  setup: (provider: string, body: unknown = {}) => apiFetch(`/integrations/${provider}/setup`, { method: "POST", body: JSON.stringify(body) }),
+};
+
+export const courseLogsApi = {
+  list: () => apiFetch<Paged<CourseLog> | CourseLog[]>("/course-logs"),
+};
+
+export const appliedCouponsApi = {
+  list: () => apiFetch<Paged<AppliedCoupon> | AppliedCoupon[]>("/coupons/applied"),
+};
+
+export const toppersCallListApi = {
+  list: () => apiFetch<Paged<Topper> | Topper[]>("/toppers/call-list"),
+};
+

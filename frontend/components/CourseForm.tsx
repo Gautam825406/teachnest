@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, type Category, type Course, type Subcategory, type Teacher } from "@/lib/api";
+import { apiFetch, uploadFile, type Category, type Course, type Subcategory, type Teacher } from "@/lib/api";
 import { Button, ErrorBox, Field, Input, Label, Select, Textarea } from "@/components/ui";
 
 export const VIDEO_ORDERS = [
@@ -58,6 +58,7 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
   const [busy, setBusy] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [newSubcategory, setNewSubcategory] = useState("");
+  const [uploading, setUploading] = useState<string | null>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
 
   const set = <K extends keyof CourseFormValues>(k: K, val: CourseFormValues[K]) => setV((p) => ({ ...p, [k]: val }));
@@ -82,6 +83,19 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
     const next = v.description.slice(0, start) + prefix + selected + suffix + v.description.slice(end);
     set("description", next);
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(start + prefix.length, start + prefix.length + selected.length); });
+  }
+
+  async function handleUpload(key: "thumbnail_url" | "syllabus_url", file: File) {
+    setUploading(key);
+    setError(null);
+    try {
+      const up = await uploadFile(file);
+      set(key, up.url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed. Please try again.");
+    } finally {
+      setUploading(null);
+    }
   }
 
   async function createCategory() {
@@ -190,7 +204,7 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
             </div>
             <Field label="Test Series">
               <div className="max-h-32 overflow-y-auto rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-700">
-                <p className="text-xs text-slate-500">Test series are managed in Phase 2. Select IDs if available, or leave empty.</p>
+                <p className="text-xs text-slate-500">Select test series to include in this course.</p>
                 <Input className="mt-2" value={v.test_series_ids.join(",")} onChange={(e) => set("test_series_ids", e.target.value.split(",").map((x) => x.trim()).filter(Boolean))} placeholder="Comma-separated test series IDs" />
               </div>
             </Field>
@@ -201,12 +215,14 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
               </Select>
             </Field>
             <Field label="Thumbnail" hint="JPEG, JPG or PNG. Recommended 1280 x 720.">
-              <Input type="file" accept="image/jpeg,image/jpg,image/png" onChange={(e) => { const f = e.target.files?.[0]; if (f) set("thumbnail_url", f.name); }} />
-              {v.thumbnail_url && <p className="mt-1 text-xs text-slate-500">Selected: {v.thumbnail_url}</p>}
+              <Input type="file" accept="image/jpeg,image/jpg,image/png" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleUpload("thumbnail_url", f); }} />
+              {uploading === "thumbnail_url" && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
+              {v.thumbnail_url && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {v.thumbnail_url}</p>}
             </Field>
             <Field label="Syllabus PDF" hint="Upload the course syllabus as a PDF.">
-              <Input type="file" accept="application/pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) set("syllabus_url", f.name); }} />
-              {v.syllabus_url && <p className="mt-1 text-xs text-slate-500">Selected: {v.syllabus_url}</p>}
+              <Input type="file" accept="application/pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleUpload("syllabus_url", f); }} />
+              {uploading === "syllabus_url" && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
+              {v.syllabus_url && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {v.syllabus_url}</p>}
             </Field>
           </div>
         </section>
@@ -259,7 +275,7 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
         </section>
 
         <ErrorBox message={error} />
-        <Button type="submit" className="w-full sm:w-auto" disabled={busy}>{busy ? "Saving..." : "Save Details"}</Button>
+        <Button type="submit" className="w-full sm:w-auto" disabled={busy || uploading !== null}>{busy ? "Saving..." : "Save Details"}</Button>
       </div>
 
       {/* Live preview */}

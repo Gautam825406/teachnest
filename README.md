@@ -1,4 +1,55 @@
-# TeachNest — Phase 1
+# TeachNest — Phase 2
+
+A multi-tenant coaching-institute SaaS admin panel, built from the functionality
+map in `~/workspace/your_files/classwalla-clone-functionality-map.md`
+(explored live from adminpanel.classwalla.com on 20 Nov 2026).
+Built from the spec in words only — no ClassWalla code, images or assets were
+copied. All UI text is in English.
+
+## Phase 2 — what was added (20 Nov 2026, local only — not deployed/pushed)
+
+All Phase 1 features still work (verified: backend pytest 29 passed — 15 Phase 1
++ 14 new Phase 2 tests; frontend `npm run build` passes, 40 routes; live local
+spot-check of all 33 new endpoint groups returned 200 with seeded totals).
+
+- **Test Series** — list/create/edit + detail with MCQ questions (4 options,
+  correct answer, marks, negative marks).
+- **Video Assignments** — assignments + student submissions with grading
+  (marks/feedback/status). **Test Assignments** — assignments + student
+  assignments with scores. **Score Sheet** — chapter-wise test + test series
+  selectors, per-student scores table.
+- **Notes & Docs** — Add Notes, Folder Notes (Beta), Syllabus, Uploaded Notes
+  (real PDF upload). **Previous Papers** — Add Papers + Exam Types CRUD.
+- **E-Books** — list/create (author, type, price, file upload), E-Book Types,
+  Authors, E-Book Banners.
+- **Seminars, Item Bundles** (courses + test series + e-books combo pricing),
+  **YouTube Playlist** (video ID, title, category).
+- **Students & Marketing** — Leads (Custom/Signup/Expired), Toppers & Reviews
+  (Testimonials, Toppers, Toppers Call List), App Banners, Push Notifications
+  (list + Send form), Current Affairs, Latest Jobs.
+- **Sales & Billing** — Discounts & Coupons (All + Applied), OTP Usage,
+  Orders: Transfer/Refund/Deactivate actions + Deactivated Courses view.
+- **System & Config** — Help & Support (Enquiries + Enquiry Types),
+  Integrations (WhatsApp API BETA INACTIVE, TeachNest AI BETA INACTIVE —
+  setup/status only, no real keys), User Management — Users list, System Logs
+  — Course Logs (auto-logged on course/test-series create/update/delete).
+- **Real file uploads** — `POST /api/uploads` (images/PDF, max 10 MB, stored
+  under `backend/uploads/<tenant_id>/`, served at `/uploads/...`). Local-disk
+  store for now; switch to S3/R2 via `UPLOAD_DIR` / `UPLOAD_BACKEND` — see
+  `backend/README.md`. Course thumbnails/syllabus and teacher photos now
+  upload through it instead of storing just a filename.
+- **Sidebar** — every Phase 1 "Coming soon in Phase 2" entry is now a real
+  page; no dead menu items remain in Phase 2 scope.
+- **Demo seed (Demo Academy only)** — 2 test series × 3 questions, 1 video
+  assignment + 2 submissions, 1 test assignment + 2 student assignments,
+  3 scores, 3 notes, 2 previous papers + 2 exam types, 2 e-books + 2 types +
+  2 authors + 1 e-book banner, 1 seminar, 1 bundle, 2 YouTube videos,
+  3 leads (one per type), 2 testimonials, 2 toppers, 3 banners,
+  2 notifications, 3 current affairs, 2 jobs, 2 coupons + 1 applied,
+  3 OTP rows, 2 enquiries + 2 enquiry types, second user `teacher1`
+  (Teacher role), 3 course logs.
+
+## Phase 1 (original)
 
 A multi-tenant coaching-institute SaaS admin panel, built from the functionality
 map in `~/workspace/your_files/classwalla-clone-functionality-map.md`
@@ -169,19 +220,21 @@ and `backend/README.md`.
   the date filter is the one that re-fetches stats (no per-course stats
   parameter in the Phase 1 contract).
 
-## What is still missing (Phase 2)
+## What is still missing (Phase 3 / Phase 4)
 
-- Test Series, Video/Test Assignments + submissions, Score Sheet
-- Notes & Docs, Previous Papers, E-Books, Seminars, Item Bundles, YouTube Playlist
-- Leads, Toppers & Reviews, App Banners, Push Notifications, Current Affairs, Latest Jobs
-- Discounts & Coupons, OTP Usage, Help & Support, Integrations (WhatsApp API,
-  TeachNest AI), Users list, System Logs
-- Real file uploads (thumbnails, syllabus PDFs, teacher photos) + video
-  storage/streaming, real Razorpay checkout, wallet top-up / storage purchase
-- AI question-paper generator (upload PDF/TXT/XLSX/CSV/image/DOCX)
+- Real Razorpay checkout, wallet top-up / storage purchase, video
+  storage/streaming (uploads are local disk in Phase 2)
+- AI question-paper generator (upload PDF/TXT/XLSX/CSV/image/DOCX) —
+  TeachNest AI is a status-only card in Phase 2
+- Real WhatsApp integration (status-only card in Phase 2)
 
 ## Phase 3 (not started)
 
 White-label student mobile app (React Native + Expo, one codebase rebranded
 per institute): mobile OTP login/register, course browsing + purchase,
 recorded + live classes, tests, notes/e-books, push notifications.
+
+## Phase 4 (not started)
+
+Integrations & AI: real WhatsApp API, AI question-paper generator, storage
+plans + billing, wallet top-up.

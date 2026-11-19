@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { apiDownload, apiFetch, formatDate, formatINR, type Order, type Paged } from "@/lib/api";
-import { Badge, BannerHeader, Button, Card, EmptyState, ErrorBox, Input, Loading, Select } from "@/components/ui";
+import { apiDownload, apiFetch, asList, formatDate, formatINR, ordersActionsApi, type AnyRecord, type Order, type Paged } from "@/lib/api";
+import { Badge, BannerHeader, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Modal, Select, Textarea } from "@/components/ui";
 
 function studentName(o: Order): string {
   if (typeof o.student === "object" && o.student?.name) return o.student.name;
@@ -29,31 +29,92 @@ export default function OrdersPage() {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const [view, setView] = useState<"all" | "deactivated">("all");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [students, setStudents] = useState<AnyRecord[]>([]);
+  const [transferOrder, setTransferOrder] = useState<Order | null>(null);
+  const [transferTo, setTransferTo] = useState("");
+  const [refundOrder, setRefundOrder] = useState<Order | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [deactivateOrder, setDeactivateOrder] = useState<Order | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const q = new URLSearchParams({ page: String(page), per_page: String(perPage) });
-      if (search) q.set("search", search);
-      if (status) q.set("status", status);
-      const data = await apiFetch<Paged<Order> | Order[]>(`/orders?${q.toString()}`);
-      if (Array.isArray(data)) { setOrders(data); setTotal(data.length); }
-      else { setOrders(data.items || []); setTotal(data.total ?? (data.items || []).length); }
+      if (view === "deactivated") {
+        const data = await ordersActionsApi.deactivated();
+        const { items, total: t } = asList(data as never);
+        setOrders(items as Order[]);
+        setTotal(t);
+      } else {
+        const q = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+        if (search) q.set("search", search);
+        if (status) q.set("status", status);
+        const data = await apiFetch<Paged<Order> | Order[]>(`/orders?${q.toString()}`);
+        if (Array.isArray(data)) { setOrders(data); setTotal(data.length); }
+        else { setOrders(data.items || []); setTotal(data.total ?? (data.items || []).length); }
+      }
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load orders."); }
     finally { setLoading(false); }
-  }, [search, status, page, perPage]);
+  }, [search, status, page, perPage, view]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    apiFetch<unknown>("/students?per_page=100").then((d) => {
+      const { items } = asList(d as never);
+      setStudents(items as AnyRecord[]);
+    }).catch(() => undefined);
+  }, []);
 
   async function exportCsv() {
     setExporting(true);
     try { await apiDownload("/orders/export", "orders.csv"); }
     catch (e) { setError(e instanceof Error ? e.message : "Export failed."); }
     finally { setExporting(false); }
+  }
+
+  async function doTransfer() {
+    if (!transferOrder || !transferTo) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await ordersActionsApi.transfer(transferOrder.id, Number(transferTo) || transferTo);
+      setTransferOrder(null);
+      setTransferTo("");
+      load();
+    } catch (e) { setActionError(e instanceof Error ? e.message : "Could not transfer the order."); }
+    finally { setBusy(false); }
+  }
+
+  async function doRefund() {
+    if (!refundOrder) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await ordersActionsApi.refund(refundOrder.id, refundReason);
+      setRefundOrder(null);
+      setRefundReason("");
+      load();
+    } catch (e) { setActionError(e instanceof Error ? e.message : "Could not refund the order."); }
+    finally { setBusy(false); }
+  }
+
+  async function doDeactivate() {
+    if (!deactivateOrder) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await ordersActionsApi.deactivate(deactivateOrder.id);
+      setDeactivateOrder(null);
+      load();
+    } catch (e) { setActionError(e instanceof Error ? e.message : "Could not deactivate the order."); }
+    finally { setBusy(false); }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / perPage));
@@ -70,6 +131,10 @@ export default function OrdersPage() {
           </>
         }
       />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Button variant={view === "all" ? "primary" : "secondary"} onClick={() => { setView("all"); setPage(1); }}>All Orders</Button>
+        <Button variant={view === "deactivated" ? "primary" : "secondary"} onClick={() => { setView("deactivated"); setPage(1); }}>Deactivated Courses</Button>
+      </div>
       <Card className="mb-4 p-4">
         <div className="flex flex-wrap gap-3">
           <Input placeholder="Search orders..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="max-w-xs" />
@@ -90,7 +155,7 @@ export default function OrdersPage() {
       </Card>
       <ErrorBox message={error} />
       {loading ? <Loading /> : orders.length === 0 ? (
-        <EmptyState title="No orders yet" subtitle="Orders will appear here once students make a purchase." />
+        <EmptyState title={view === "deactivated" ? "No deactivated courses" : "No orders yet"} subtitle={view === "deactivated" ? "Deactivated course orders will appear here." : "Orders will appear here once students make a purchase."} />
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
@@ -114,7 +179,17 @@ export default function OrdersPage() {
                   <td className="px-4 py-3 font-mono text-xs">{String(o.transaction_id || o.id)}</td>
                   <td className="px-4 py-3">{formatDate(dateOf(o))}<br /><span className="font-semibold">{formatINR(amountOf(o))}</span></td>
                   <td className="max-w-48 truncate px-4 py-3">{itemsOf(o)}</td>
-                  <td className="px-4 py-3 text-slate-500">—</td>
+                  <td className="px-4 py-3">
+                    {view === "all" ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" className="px-3 py-1 text-xs" onClick={() => { setTransferOrder(o); setTransferTo(""); setActionError(null); }}>Transfer</Button>
+                        <Button variant="secondary" className="px-3 py-1 text-xs" onClick={() => { setRefundOrder(o); setRefundReason(""); setActionError(null); }}>Refund</Button>
+                        <Button variant="danger" className="px-3 py-1 text-xs" onClick={() => { setDeactivateOrder(o); setActionError(null); }}>Deactivate</Button>
+                      </div>
+                    ) : (
+                      <span className="text-slate-500">Deactivated</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -126,6 +201,56 @@ export default function OrdersPage() {
         <span>Page {page} of {totalPages} • {total} orders</span>
         <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
       </div>
+
+      <Modal open={!!transferOrder} title="Transfer Order" onClose={() => setTransferOrder(null)}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Transfer order {transferOrder ? String(transferOrder.transaction_id || transferOrder.id) : ""} ({transferOrder ? studentName(transferOrder) : ""}) to another student.
+          </p>
+          <Field label="Transfer To Student" required>
+            <Select value={transferTo} onChange={(e) => setTransferTo(e.target.value)} required>
+              <option value="">Select student</option>
+              {students.map((s) => (
+                <option key={String(s.id)} value={String(s.id)}>{String(s.name || s.full_name || s.id)} {s.phone ? `— ${s.phone}` : ""}</option>
+              ))}
+            </Select>
+          </Field>
+          <ErrorBox message={actionError} />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setTransferOrder(null)}>Cancel</Button>
+            <Button onClick={doTransfer} disabled={busy || !transferTo}>{busy ? "Transferring..." : "Transfer Order"}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!refundOrder} title="Refund Order" onClose={() => setRefundOrder(null)}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Refund order {refundOrder ? String(refundOrder.transaction_id || refundOrder.id) : ""} ({refundOrder ? formatINR(amountOf(refundOrder)) : ""}).
+          </p>
+          <Field label="Refund Reason" required>
+            <Textarea rows={3} value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="Why is this order being refunded?" />
+          </Field>
+          <ErrorBox message={actionError} />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setRefundOrder(null)}>Cancel</Button>
+            <Button onClick={doRefund} disabled={busy || !refundReason.trim()}>{busy ? "Refunding..." : "Refund Order"}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!deactivateOrder} title="Deactivate Order" onClose={() => setDeactivateOrder(null)}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Deactivate this order? The student will lose access to the purchased course content.
+          </p>
+          <ErrorBox message={actionError} />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setDeactivateOrder(null)}>Cancel</Button>
+            <Button variant="danger" onClick={doDeactivate} disabled={busy}>{busy ? "Deactivating..." : "Deactivate"}</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-# TeachNest — Backend (Phase 1)
+# TeachNest — Backend (Phase 2)
 
 FastAPI + SQLAlchemy + Pydantic v2. Multi-tenant SaaS backend built from the
 functionality map in `~/workspace/your_files/classwalla-clone-functionality-map.md`
@@ -36,6 +36,8 @@ Other env vars:
 | `DATABASE_URL` | `sqlite:///./app.db` | Database connection string |
 | `SECRET_KEY` | dev default | JWT signing key — **change in production** |
 | `FRONTEND_ORIGIN` | `http://localhost:3000` | Allowed CORS origin |
+| `UPLOAD_DIR` | `backend/uploads/` | Local upload store (see below) |
+| `UPLOAD_BACKEND` | `local` | `local` only for now; `s3`/`r2` is a future switch |
 
 ## Auth
 
@@ -98,6 +100,75 @@ All seed data is clearly demo data (`.local` / `example.com` emails,
   says 36, the list itself wins); seeded roles Admin (system default, all 37) and
   Teacher (subset).
 - Settings: `GET /api/settings`, `PUT /api/settings`
+
+## Uploads (Phase 2)
+
+- `POST /api/uploads` (multipart, field `file`, optional `kind`) — images
+  and PDFs only, max 10 MB. Files are stored under
+  `backend/uploads/<tenant_id>/<uuid>.<ext>` and served at
+  `/uploads/<tenant_id>/<filename>` (StaticFiles, mounted in `main.py`).
+  Response: `{url, filename, size_bytes, content_type}`.
+- **CourseForm / Teacher photo wiring:** there is no separate upload field
+  on the Course or Teacher schemas — the frontend uploads the file first via
+  `POST /api/uploads`, then saves the returned `url` into the existing
+  `thumbnail_url` / `syllabus_url` (Course) or `photo_url` (Teacher) fields.
+  No schema change was needed.
+- **S3/R2 switch (future):** set `UPLOAD_BACKEND=s3` (or `r2`) and point
+  `UPLOAD_DIR` at the bucket prefix; the upload endpoint is the single place
+  that writes files, so only `routers/uploads.py` (storage backend) and the
+  StaticFiles mount in `main.py` (signed-URL / CDN serving) need to change.
+  No keys are stored in the repo — use env vars via the host (Render/Vercel)
+  when that switch is made.
+
+## Phase 2 endpoints (all JWT-protected, tenant-scoped, 404 cross-tenant)
+
+Lists return `{items, total}` and accept `?search=&page=&per_page=` unless noted.
+
+- Uploads: `POST /api/uploads` (see above); files served at `/uploads/...`
+- Test Series: `GET/POST /api/test-series`, `GET/PUT/DELETE /api/test-series/{id}`,
+  `GET/POST /api/test-series/{id}/questions`, `DELETE /api/test-series/{id}/questions/{qid}`
+- Video Assignments: `GET/POST/PUT/DELETE /api/video-assignments`,
+  `GET /api/video-assignments/submissions?assignment_id=&student_id=`,
+  `POST /api/video-assignments/submissions`, `PUT /api/video-assignments/submissions/{id}`
+  (`{marks, feedback, status}`)
+- Test Assignments: `GET/POST/PUT/DELETE /api/test-assignments`,
+  `GET/POST/PUT /api/test-assignments/student-assignments`
+- Scores: `GET /api/scores?test_series_id=&chapter_test=`, `POST /api/scores`;
+  `GET /api/score-sheet?test_series_id=&chapter_test=` → `{students: [{student_id, student_name, score, total_marks}]}`
+- Notes & Docs: `GET/POST/PUT/DELETE /api/notes?kind=&folder=&search=`
+  (kind = `note|folder|syllabus|uploaded`)
+- Previous Papers: `GET/POST/PUT/DELETE /api/previous-papers`, `GET/POST/PUT/DELETE /api/exam-types`
+- E-Books: `GET/POST/PUT/DELETE /api/ebooks`, `/api/ebook-types`, `/api/authors`, `/api/ebook-banners`
+- Seminars: `GET/POST/PUT/DELETE /api/seminars`
+- Item Bundles: `GET/POST/PUT/DELETE /api/bundles` (`course_ids`, `test_series_ids`, `ebook_ids` JSON lists)
+- YouTube Playlist: `GET/POST/DELETE /api/youtube-playlists`
+- Leads: `GET/POST/PUT/DELETE /api/leads?type=&search=` (type = `custom|signup|expired`)
+- Toppers & Reviews: `GET/POST/PUT/DELETE /api/testimonials`, `/api/toppers`;
+  `GET /api/toppers/call-list` (toppers with the student's phone)
+- App Banners: `GET/POST/PUT/DELETE /api/banners`
+- Push Notifications: `GET/POST /api/notifications` (POST sends immediately, `status: SENT`)
+- Current Affairs: `GET/POST/DELETE /api/current-affairs?search=&language=&from=&to=`;
+  Jobs: `GET/POST/PUT/DELETE /api/jobs`
+- Coupons: `GET/POST/PUT/DELETE /api/coupons`, `GET /api/coupons/applied`
+- OTP Usage: `GET /api/otp-usage?mobile=&search=` (read-only; 3 rows seeded)
+- Orders extensions: `POST /api/orders/{id}/transfer {to_student_id}`,
+  `POST /api/orders/{id}/refund {reason}` (→ `REFUNDED`),
+  `POST /api/orders/{id}/deactivate` (→ `DEACTIVATED`),
+  `GET /api/orders/deactivated`, `GET /api/orders/company` (all orders)
+- Help & Support: `GET/POST/PUT/DELETE /api/enquiries`, `/api/enquiry-types`
+- Integrations: `GET /api/integrations` (static WhatsApp API + TeachNest AI cards,
+  both `INACTIVE`/`BETA` — no real keys, no wiring),
+  `POST /api/integrations/{provider}/setup` → `{"status": "INACTIVE", "message": "Setup is not available in this demo — no real keys are stored."}`
+- Users: `GET /api/users`, `POST /api/users` (`{username, email, password, role}`, bcrypt hash, tenant-scoped uniqueness)
+- System Logs: `GET /api/course-logs` (auto-logged on course create/update/delete and test-series create)
+
+Demo seed (Phase 2, Demo Academy only): 2 test series × 3 questions,
+1 video assignment + 2 submissions, 1 test assignment + 2 student assignments,
+3 scores, 3 notes, 2 previous papers + 2 exam types, 2 e-books + 2 types +
+2 authors + 1 banner, 1 seminar, 1 bundle, 2 YouTube videos, 3 leads,
+2 testimonials, 2 toppers, 3 banners, 2 notifications, 3 current affairs,
+2 jobs, 2 coupons + 1 applied, 3 OTP rows, 2 enquiries + 2 types,
+a second user (`teacher1`), 3 course logs. Second Academy gets nothing new.
 
 ## Tests
 
