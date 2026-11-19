@@ -21,4 +21,3 @@ services:
         generateValue: true
       - key: FRONTEND_ORIGIN
         value: https://teachnest.vercel.app
-        sync: false
