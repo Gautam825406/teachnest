@@ -80,7 +80,7 @@ export function useCountUp(value: number, start: boolean, duration = 900): numbe
     const tick = (t: number) => {
       const p = Math.min(1, (t - t0) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
-      setCurrent(Math.round(value * eased));
+      setCurrent(Math.max(0, Math.min(value, Math.round(value * eased))));
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
