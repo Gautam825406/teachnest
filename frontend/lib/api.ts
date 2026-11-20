@@ -316,6 +316,61 @@ export interface Integration { provider: string; name: string; status?: string; 
 export interface AppUser { id: number | string; username: string; email?: string; role?: string; [key: string]: unknown }
 export interface CourseLog { id: number | string; course_id?: number | string; course_title?: string; action?: string; message?: string; created_at?: string; [key: string]: unknown }
 
+/* ---------------- Courses: subjects, topics, videos, packages, copy ---------------- */
+
+export interface Subject {
+  id: number | string;
+  course_id: number | string;
+  name: string;
+  description?: string;
+  order?: number;
+  [key: string]: unknown;
+}
+
+export interface Topic {
+  id: number | string;
+  subject_id: number | string;
+  name: string;
+  description?: string;
+  order?: number;
+  [key: string]: unknown;
+}
+
+export interface CourseVideo {
+  id: number | string;
+  course_id: number | string;
+  subject_id?: number | string | null;
+  topic_id?: number | string | null;
+  title: string;
+  video_url: string;
+  duration_seconds?: number;
+  order?: number;
+  is_free_preview?: boolean;
+  [key: string]: unknown;
+}
+
+export interface CoursePackage {
+  id: number | string;
+  name: string;
+  description?: string;
+  course_ids: (number | string)[];
+  price?: number;
+  mrp?: number;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
+/** Format a duration in seconds as "mm:ss" (or "h:mm:ss" for long videos). */
+export function formatDuration(seconds?: number | null): string {
+  if (seconds === undefined || seconds === null || Number.isNaN(Number(seconds))) return "—";
+  const s = Math.max(0, Math.floor(Number(seconds)));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  return h > 0 ? `${h}:${mm}:${String(sec).padStart(2, "0")}` : `${mm}:${String(sec).padStart(2, "0")}`;
+}
+
 /* ---------------- Phase 2: typed resource helpers ---------------- */
 
 function resource<T>(base: string) {
@@ -329,6 +384,44 @@ function resource<T>(base: string) {
 }
 
 export const testSeriesApi = resource<TestSeries>("/test-series");
+export const coursesApi = resource<Course>("/courses");
+
+export const subjectsApi = {
+  list: (courseId: number | string) => apiFetch<Paged<Subject> | Subject[]>(`/courses/${courseId}/subjects`),
+  get: (id: number | string) => apiFetch<Subject>(`/subjects/${id}`),
+  create: (courseId: number | string, body: unknown) => apiFetch<Subject>(`/courses/${courseId}/subjects`, { method: "POST", body: JSON.stringify(body) }),
+  update: (id: number | string, body: unknown) => apiFetch<Subject>(`/subjects/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  remove: (id: number | string) => apiFetch<void>(`/subjects/${id}`, { method: "DELETE" }),
+};
+
+export const topicsApi = {
+  list: (subjectId: number | string) => apiFetch<Paged<Topic> | Topic[]>(`/subjects/${subjectId}/topics`),
+  get: (id: number | string) => apiFetch<Topic>(`/topics/${id}`),
+  create: (subjectId: number | string, body: unknown) => apiFetch<Topic>(`/subjects/${subjectId}/topics`, { method: "POST", body: JSON.stringify(body) }),
+  update: (id: number | string, body: unknown) => apiFetch<Topic>(`/topics/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  remove: (id: number | string) => apiFetch<void>(`/topics/${id}`, { method: "DELETE" }),
+};
+
+export const courseVideosApi = {
+  list: (courseId: number | string, subjectId?: string, topicId?: string) => {
+    const q = new URLSearchParams();
+    if (subjectId) q.set("subject_id", subjectId);
+    if (topicId) q.set("topic_id", topicId);
+    const qs = q.toString();
+    return apiFetch<Paged<CourseVideo> | CourseVideo[]>(`/courses/${courseId}/videos${qs ? `?${qs}` : ""}`);
+  },
+  get: (id: number | string) => apiFetch<CourseVideo>(`/course-videos/${id}`),
+  create: (courseId: number | string, body: unknown) => apiFetch<CourseVideo>(`/courses/${courseId}/videos`, { method: "POST", body: JSON.stringify(body) }),
+  update: (id: number | string, body: unknown) => apiFetch<CourseVideo>(`/course-videos/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  remove: (id: number | string) => apiFetch<void>(`/course-videos/${id}`, { method: "DELETE" }),
+};
+
+export const coursePackagesApi = resource<CoursePackage>("/course-packages");
+
+export const copyCourseApi = {
+  copy: (courseId: number | string, body: { new_name?: string; price?: number }) =>
+    apiFetch<Course>(`/courses/${courseId}/copy`, { method: "POST", body: JSON.stringify(body) }),
+};
 export const videoAssignmentsApi = resource<VideoAssignment>("/video-assignments");
 export const testAssignmentsApi = resource<TestAssignment>("/test-assignments");
 export const studentAssignmentsApi = resource<StudentAssignment>("/test-assignments/student-assignments");

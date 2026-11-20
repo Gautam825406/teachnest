@@ -1375,3 +1375,118 @@ class IntegrationLogOut(BaseModel):
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+# ---------- Phase 5: course subjects, topics, videos, packages ----------
+class SubjectBase(BaseModel):
+    name: str
+    description: str = ""
+    order: int = 0
+
+
+class SubjectCreate(SubjectBase):
+    pass
+
+
+class SubjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    order: int | None = None
+
+
+class SubjectOut(SubjectBase):
+    id: int
+    course_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TopicBase(BaseModel):
+    name: str
+    description: str = ""
+    order: int = 0
+
+
+class TopicCreate(TopicBase):
+    pass
+
+
+class TopicUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    order: int | None = None
+
+
+class TopicOut(TopicBase):
+    id: int
+    subject_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CourseVideoBase(BaseModel):
+    title: str
+    subject_id: int | None = None
+    topic_id: int | None = None
+    video_url: str = ""
+    duration_seconds: int = 0
+    order: int = 0
+    is_free_preview: bool = False
+
+
+class CourseVideoCreate(CourseVideoBase):
+    pass
+
+
+class CourseVideoUpdate(BaseModel):
+    title: str | None = None
+    subject_id: int | None = None
+    topic_id: int | None = None
+    video_url: str | None = None
+    duration_seconds: int | None = None
+    order: int | None = None
+    is_free_preview: bool | None = None
+
+
+class CourseVideoOut(CourseVideoBase):
+    id: int
+    course_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CoursePackageBase(BaseModel):
+    name: str
+    description: str = ""
+    course_ids: list[int] = []
+    price: float = 0
+    mrp: float = 0
+    is_active: bool = True
+
+
+class CoursePackageCreate(CoursePackageBase):
+    pass
+
+
+class CoursePackageUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    course_ids: list[int] | None = None
+    price: float | None = None
+    mrp: float | None = None
+    is_active: bool | None = None
+
+
+class CoursePackageOut(CoursePackageBase):
+    id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CourseCopyRequest(BaseModel):
+    new_name: str | None = None
+    price: float | None = None

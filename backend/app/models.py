@@ -556,3 +556,54 @@ class IntegrationLog(Base):
     detail = Column(Text, default="", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+
+
+# ---------- Phase 5: course subjects, topics, videos, packages ----------
+class Subject(Base):
+    __tablename__ = "subjects"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="", nullable=False)
+    order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Topic(Base):
+    __tablename__ = "topics"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="", nullable=False)
+    order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CourseVideo(Base):
+    __tablename__ = "course_videos"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False, index=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)
+    topic_id = Column(Integer, ForeignKey("topics.id"), nullable=True)
+    title = Column(String(500), nullable=False)
+    video_url = Column(String(1024), default="", nullable=False)
+    duration_seconds = Column(Integer, default=0, nullable=False)
+    order = Column(Integer, default=0, nullable=False)
+    is_free_preview = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CoursePackage(Base):
+    __tablename__ = "course_packages"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="", nullable=False)
+    course_ids = Column(JSON, default=list, nullable=False)
+    price = Column(Float, default=0.0, nullable=False)
+    mrp = Column(Float, default=0.0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

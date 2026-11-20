@@ -12,6 +12,7 @@ from .routers import (
     auth,
     categories,
     content,
+    course_content,
     courses,
     dashboard,
     engagement,
@@ -65,6 +66,7 @@ def health():
 app.include_router(auth.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(courses.router, prefix="/api")
+app.include_router(course_content.router, prefix="/api")
 app.include_router(categories.router, prefix="/api")
 app.include_router(teachers.router, prefix="/api")
 app.include_router(students.router, prefix="/api")

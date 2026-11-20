@@ -79,6 +79,27 @@ export interface HomeData {
 }
 export interface Paged<T> { items: T[]; total: number }
 export interface ContentItem { id: number; title: string; description?: string | null; url?: string | null; file_url?: string | null; video_url?: string | null; subject?: string | null }
+// ---- Course content (read-only student view) ----
+// Matches GET /api/student/courses/{course_id}/content:
+// { course, subjects: [{ id, name, description, order, topics: [{ id, name, description, order, videos: [...] }] }], videos: [...] }
+// `videos` at the top level are course-level videos with no topic.
+export interface CourseContentVideo {
+  id: number; title: string; video_url?: string | null;
+  duration_seconds?: number | null; order?: number | null; is_free_preview?: boolean;
+}
+export interface CourseContentTopic {
+  id: number; name: string; description?: string | null; order?: number | null;
+  videos: CourseContentVideo[];
+}
+export interface CourseContentSubject {
+  id: number; name: string; description?: string | null; order?: number | null;
+  topics: CourseContentTopic[];
+}
+export interface CourseContent {
+  course: Course;
+  subjects: CourseContentSubject[];
+  videos: CourseContentVideo[];
+}
 export interface Score { id: number; test_series_id?: number; test_series_title?: string; chapter_test?: string; title?: string; score?: number; total_marks?: number; correct?: number; total_questions?: number; created_at?: string }
 export interface Assignment {
   id: number; title: string; description?: string | null; type?: string;
@@ -143,6 +164,7 @@ export const api = {
   home: () => get<HomeData>('/student/home'),
   courses: (page = 1, per_page = 20) => get<Paged<Course>>(`/student/courses?page=${page}&per_page=${per_page}`),
   course: (id: number | string) => get<Course>(`/student/courses/${id}`),
+  getCourseContent: (id: number | string) => get<CourseContent>(`/student/courses/${id}/content`),
   // Phase 4 Cashfree purchase — replaces the Phase 3 demo purchase entirely.
   // There is no demo/success path: if Cashfree is not configured the backend
   // returns 503 and the caller must say so honestly (see course detail).
@@ -186,4 +208,9 @@ export function toArray<T>(v: Paged<T> | T[] | undefined | null): T[] {
 export function inr(n?: number | null): string {
   if (n === null || n === undefined) return '—';
   return `₹${Number(n).toLocaleString('en-IN')}`;
+}
+export function formatDuration(seconds?: number | null): string {
+  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return '';
+  const total = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }

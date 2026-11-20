@@ -33,6 +33,7 @@ from ..models import (
     Banner,
     Bundle,
     Course,
+    CourseVideo,
     CurrentAffair,
     Ebook,
     Enquiry,
@@ -48,6 +49,7 @@ from ..models import (
     Seminar,
     Student,
     StudentTestAssignment,
+    Subject,
     Submission,
     Teacher,
     Tenant,
@@ -55,6 +57,7 @@ from ..models import (
     TestSeries,
     Testimonial,
     Topper,
+    Topic,
     VideoAssignment,
     YoutubeVideo,
 )
@@ -362,6 +365,80 @@ def get_course(course_id: int, student: Student = Depends(get_current_student), 
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
     return course
+
+
+@router.get("/courses/{course_id}/content")
+def get_course_content(course_id: int, student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+    """Nested read-only course content: subjects -> topics -> videos,
+    plus course-level videos (no topic). Same access as course detail:
+    tenant-scoped, no enrolment check."""
+    course = db.query(Course).filter(Course.id == course_id, Course.tenant_id == student.tenant_id).first()
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    tid = student.tenant_id
+    videos = (
+        db.query(CourseVideo)
+        .filter(CourseVideo.tenant_id == tid, CourseVideo.course_id == course.id)
+        .order_by(CourseVideo.order, CourseVideo.id)
+        .all()
+    )
+
+    def _video_dict(v: CourseVideo) -> dict:
+        return {
+            "id": v.id,
+            "title": v.title,
+            "video_url": v.video_url,
+            "duration_seconds": v.duration_seconds,
+            "order": v.order,
+            "is_free_preview": v.is_free_preview,
+        }
+
+    videos_by_topic: dict[int, list] = {}
+    for v in videos:
+        if v.topic_id is not None:
+            videos_by_topic.setdefault(v.topic_id, []).append(_video_dict(v))
+
+    subjects = (
+        db.query(Subject)
+        .filter(Subject.tenant_id == tid, Subject.course_id == course.id)
+        .order_by(Subject.order, Subject.id)
+        .all()
+    )
+    subject_ids = [s.id for s in subjects]
+    topics = (
+        db.query(Topic)
+        .filter(Topic.tenant_id == tid, Topic.subject_id.in_(subject_ids))
+        .order_by(Topic.order, Topic.id)
+        .all()
+        if subject_ids
+        else []
+    )
+    topics_by_subject: dict[int, list] = {}
+    for t in topics:
+        topics_by_subject.setdefault(t.subject_id, []).append(
+            {
+                "id": t.id,
+                "name": t.name,
+                "description": t.description,
+                "order": t.order,
+                "videos": videos_by_topic.get(t.id, []),
+            }
+        )
+
+    return {
+        "course": CourseOut.model_validate(course).model_dump(),
+        "subjects": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "description": s.description,
+                "order": s.order,
+                "topics": topics_by_subject.get(s.id, []),
+            }
+            for s in subjects
+        ],
+        "videos": [_video_dict(v) for v in videos if v.topic_id is None],
+    }
 
 
 @router.post("/courses/{course_id}/purchase")

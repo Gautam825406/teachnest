@@ -283,3 +283,15 @@ Cashfree replaces Razorpay everywhere (no Razorpay code remains in the app).
 - **WhatsApp** — Meta WhatsApp Cloud API (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`); templates `teachnest_enrolment`, `teachnest_payment_receipt`, `teachnest_test_reminder`; every attempt logged. **FCM push** — `FIREBASE_SERVICE_ACCOUNT_JSON`; topic-based sends. **Live classes** — 100ms (`HMS_*`) or Agora (`AGORA_*`); unconfigured keeps the DEMO label; student live config at `GET /api/student/live/config`. **OTP SMS** — MSG91 (`MSG91_API_KEY`) with Exotel fallback; unconfigured keeps demo OTP `123456` labelled DEMO.
 - **Verification (20 Nov 2026, local)** — backend pytest **53 passed** (38 pre-existing + 15 Phase 4); frontend `npm run build` passes (41 routes incl. `/dashboard/ai-generator`); mobile `npx tsc --noEmit` passes. Live smoke test: integrations status shows all providers unconfigured with no secrets leaked; create-order → 503; AI generate → 503; student live config → 200 with a student token.
 - **Env vars to set (Render dashboard → Environment; Vercel needs none new)** — `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV` (SANDBOX default), `GROQ_API_KEY`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `HMS_API_KEY`/`HMS_API_SECRET` or `AGORA_APP_ID`/`AGORA_APP_CERTIFICATE`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `MSG91_API_KEY`, `EXOTEL_SID`/`EXOTEL_API_KEY`/`EXOTEL_TOKEN`. Full details in `backend/README.md`. No real provider has been tested end-to-end yet — a real Cashfree (sandbox) payment test is still needed after keys are set.
+
+## Phase 5 — Missing Courses features (built 20 Nov 2026, local only — NOT pushed to GitHub, NOT deployed live)
+
+The ClassWalla screenshot's Courses submenu items that were missing:
+- **Add Subject** — subjects per course (`/api/courses/{id}/subjects`, admin page `/dashboard/courses/subjects`).
+- **Add Topic** — topics per subject (`/api/subjects/{id}/topics`, page `/dashboard/courses/topics`).
+- **Add Videos** — course lecture videos per course → subject → topic (`/api/courses/{id}/videos`, page `/dashboard/courses/videos`; YouTube link or uploaded file URL, free-preview flag). Not Video Assignments or YouTube Playlist.
+- **Packages** — multi-course packages with own price (`/api/course-packages`, page `/dashboard/courses/packages`; Item Bundles left alone).
+- **Copy Course** — `POST /api/courses/{id}/copy` deep-copies a course with its subjects, topics and videos (page `/dashboard/courses/copy`).
+- **Sub Category fix** — sidebar now opens `/dashboard/courses/categories?tab=subcategory` and the categories page honours `?tab=`.
+- **Mobile** — course detail shows a read-only Course Content section (subjects → topics → videos) via `GET /api/student/courses/{id}/content`; videos open via the existing in-app browser link.
+- **Verification (local)** — backend pytest **60 passed** (53 pre-existing + 7 new incl. cascade-delete test); frontend `npm run build` passes (46 routes); mobile `npx tsc --noEmit` passes.

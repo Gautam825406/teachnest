@@ -1,15 +1,52 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { brand } from '../../config/brand';
 import { Card, Empty, ErrorBox, Loading, PrimaryButton, styles } from '../../components/ui';
-import { ApiError, api, inr, type PaymentOrder } from '../../lib/api';
+import { ApiError, api, formatDuration, inr, type CourseContentVideo, type PaymentOrder } from '../../lib/api';
 import { openExternalUrl } from '../../lib/openLink';
 import { useApi } from '../../lib/useApi';
+
+// Sort by the backend `order` field; items without one keep their given order.
+function byOrder<T extends { order?: number | null }>(items?: T[] | null): T[] {
+  return [...(items ?? [])].sort(
+    (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
+  );
+}
+
+function VideoRow({ video, onPress }: { video: CourseContentVideo; onPress: () => void }) {
+  const duration = formatDuration(video.duration_seconds);
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        alignItems: 'center', backgroundColor: pressed ? brand.background : 'transparent',
+        borderRadius: 8, flexDirection: 'row', gap: 10, paddingVertical: 8,
+      })}
+    >
+      <Text style={{ color: brand.primaryColor, fontSize: 14 }}>▶</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.body, { fontWeight: '600' }]}>{video.title}</Text>
+        <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 2 }}>
+          {duration ? <Text style={styles.muted}>{duration}</Text> : null}
+          {video.is_free_preview ? (
+            <View style={{ backgroundColor: brand.accentColor, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>Free Preview</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
 export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, loading, reload } = useApi(() => api.course(id));
+  // Course content is fetched separately so a missing/empty content response
+  // never blocks the course detail itself — it degrades to the empty state.
+  const { data: content, loading: contentLoading } = useApi(() => api.getCourseContent(id), [id]);
+  const [expandedSubjects, setExpandedSubjects] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [purchased, setPurchased] = useState(false);
@@ -26,6 +63,27 @@ export default function CourseDetailScreen() {
       await openExternalUrl(link);
     } catch {
       Alert.alert('Could not open payment page', 'Check your connection and try again.');
+    }
+  };
+
+  const toggleSubject = (subjectId: number) => {
+    setExpandedSubjects((prev) =>
+      prev.includes(subjectId) ? prev.filter((s) => s !== subjectId) : [...prev, subjectId],
+    );
+  };
+
+  // Videos open the same way the app already opens external video/payment
+  // links: the in-app browser (see lib/openLink). There is no in-app video
+  // player or WebView in this app, so no new player was built.
+  const openVideo = async (video: CourseContentVideo) => {
+    if (!video.video_url) {
+      Alert.alert('Video unavailable', 'This lesson does not have a video link yet.');
+      return;
+    }
+    try {
+      await openExternalUrl(video.video_url);
+    } catch {
+      Alert.alert('Could not open video', 'Check your connection and try again.');
     }
   };
 
@@ -92,6 +150,10 @@ export default function CourseDetailScreen() {
     }
   };
 
+  const subjects = byOrder(content?.subjects);
+  const generalVideos = byOrder(content?.videos);
+  const hasContent = subjects.length > 0 || generalVideos.length > 0;
+
   return (
     <ScrollView style={{ backgroundColor: brand.background, flex: 1 }}>
       <View style={{ padding: 16 }}>
@@ -119,6 +181,57 @@ export default function CourseDetailScreen() {
             </Text>
           </Card>
         ) : null}
+        <Card>
+          <Text style={styles.heading}>Course Content</Text>
+          {contentLoading ? (
+            <Text style={[styles.muted, { marginTop: 6 }]}>Loading lessons…</Text>
+          ) : !hasContent ? (
+            <Text style={[styles.muted, { marginTop: 6 }]}>No lessons added yet.</Text>
+          ) : (
+            <>
+              {subjects.map((subject) => {
+                const expanded = expandedSubjects.includes(subject.id);
+                const topics = byOrder(subject.topics);
+                const videoCount = topics.reduce((n, t) => n + (t.videos?.length ?? 0), 0);
+                return (
+                  <View key={subject.id} style={{ borderTopColor: brand.border, borderTopWidth: 1, marginTop: 10, paddingTop: 10 }}>
+                    <Pressable onPress={() => toggleSubject(subject.id)}>
+                      <Text style={styles.heading}>{expanded ? '▾' : '▸'} {subject.name}</Text>
+                      <Text style={styles.muted}>
+                        {topics.length} topic{topics.length === 1 ? '' : 's'} · {videoCount} video{videoCount === 1 ? '' : 's'}
+                      </Text>
+                      {subject.description ? <Text style={styles.muted}>{subject.description}</Text> : null}
+                    </Pressable>
+                    {expanded ? topics.map((topic) => {
+                      const videos = byOrder(topic.videos);
+                      return (
+                        <View key={topic.id} style={{ marginTop: 10, paddingLeft: 12 }}>
+                          <Text style={[styles.body, { fontWeight: '700' }]}>{topic.name}</Text>
+                          {topic.description ? <Text style={styles.muted}>{topic.description}</Text> : null}
+                          {videos.length === 0 ? (
+                            <Text style={styles.muted}>No videos in this topic yet.</Text>
+                          ) : (
+                            videos.map((video) => (
+                              <VideoRow key={video.id} video={video} onPress={() => void openVideo(video)} />
+                            ))
+                          )}
+                        </View>
+                      );
+                    }) : null}
+                  </View>
+                );
+              })}
+              {generalVideos.length > 0 ? (
+                <View style={{ borderTopColor: brand.border, borderTopWidth: 1, marginTop: 10, paddingTop: 10 }}>
+                  <Text style={styles.heading}>General Videos</Text>
+                  {generalVideos.map((video) => (
+                    <VideoRow key={video.id} video={video} onPress={() => void openVideo(video)} />
+                  ))}
+                </View>
+              ) : null}
+            </>
+          )}
+        </Card>
         {order && !purchased ? (
           <Card>
             <Text style={styles.heading}>Order #{String(order.order_id)}</Text>

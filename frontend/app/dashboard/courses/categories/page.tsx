@@ -1,9 +1,11 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { apiFetch, type Category, type Subcategory } from "@/lib/api";
 import { Button, Card, ErrorBox, Input, Loading, PageHeader, Select } from "@/components/ui";
 
-export default function CategoriesPage() {
+function CategoriesPageContent() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<"category" | "subcategory">("category");
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -26,6 +28,11 @@ export default function CategoriesPage() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Honour ?tab=subcategory (e.g. the "Course Sub Category" sidebar link).
+  useEffect(() => {
+    if (searchParams.get("tab") === "subcategory") setTab("subcategory");
+  }, [searchParams]);
 
   function startEdit(id: string, currentName: string, parent?: string) {
     setEditingId(id); setName(currentName); if (parent) setParentId(parent);
@@ -106,5 +113,13 @@ export default function CategoriesPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+export default function CategoriesPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <CategoriesPageContent />
+    </Suspense>
   );
 }
