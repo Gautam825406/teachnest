@@ -18,7 +18,8 @@
     "orientation": "portrait",
     "plugins": [
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font"
     ],
     "scheme": "teachnest",
     "slug": "teachnest-app",

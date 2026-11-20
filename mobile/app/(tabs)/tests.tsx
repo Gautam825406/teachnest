@@ -1,66 +1,161 @@
 import { Link } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { brand } from '../../config/brand';
-import { Card, Empty, ErrorBox, Loading, styles } from '../../components/ui';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { theme, type } from '../../config/theme';
+import { Chip, Empty, ErrorBox, PressableCard, SkeletonList, SectionHeader, styles } from '../../components/ui';
+import { PressScale } from '../../components/motion';
 import { api, toArray } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
 
+function formatShortDate(value?: string | null): string {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** PressableCard on first mount (staggered entrance); plain card afterwards. */
+function GatedCard({
+  animate,
+  index,
+  onPress,
+  children,
+}: {
+  animate: boolean;
+  index: number;
+  onPress?: () => void;
+  children: ReactNode;
+}) {
+  if (!animate) {
+    return (
+      <PressScale onPress={onPress}>
+        <View style={styles.card}>{children}</View>
+      </PressScale>
+    );
+  }
+  return (
+    <PressableCard index={index} onPress={onPress}>
+      {children}
+    </PressableCard>
+  );
+}
+
 export default function TestsScreen() {
   const [tab, setTab] = useState<'series' | 'scores'>('series');
+  const [refreshing, setRefreshing] = useState(false);
   const series = useApi(() => api.testSeries());
   const scores = useApi(() => api.scores(), []);
+  // Staggered entrance only on first mount — later re-renders don't re-animate.
+  const hasAnimated = useRef(false);
+  useEffect(() => {
+    hasAnimated.current = true;
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([series.reload(), scores.reload()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
-    <ScrollView style={{ backgroundColor: brand.background, flex: 1 }}>
-      <View style={{ padding: 16 }}>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {(['series', 'scores'] as const).map((t) => (
-            <Pressable
-              key={t}
-              onPress={() => setTab(t)}
-              style={{ backgroundColor: tab === t ? brand.primaryColor : '#fff', borderColor: brand.border, borderRadius: 20, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 8 }}
-            >
-              <Text style={{ color: tab === t ? '#fff' : brand.text, fontWeight: '700' }}>
-                {t === 'series' ? 'Test Series' : 'Score Sheet'}
-              </Text>
-            </Pressable>
-          ))}
+    <ScrollView
+      refreshControl={<RefreshControl colors={[theme.primary]} onRefresh={() => void onRefresh()} refreshing={refreshing} tintColor={theme.primary} />}
+      style={{ backgroundColor: theme.background, flex: 1 }}
+    >
+      <View style={{ padding: 20 }}>
+        {/* iOS-style segmented control */}
+        <View
+          style={{
+            backgroundColor: theme.surfaceMuted,
+            borderRadius: 999,
+            flexDirection: 'row',
+            padding: 4,
+          }}
+        >
+          {(['series', 'scores'] as const).map((t) => {
+            const active = tab === t;
+            return (
+              <Pressable
+                key={t}
+                onPress={() => setTab(t)}
+                style={{
+                  alignItems: 'center',
+                  backgroundColor: active ? theme.surface : 'transparent',
+                  borderRadius: 999,
+                  flex: 1,
+                  paddingVertical: 10,
+                  ...(active ? theme.shadow : {}),
+                }}
+              >
+                <Text
+                  style={{
+                    color: active ? theme.primary : theme.muted,
+                    fontSize: 14,
+                    fontWeight: '700',
+                  }}
+                >
+                  {t === 'series' ? 'Test Series' : 'Score Sheet'}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {tab === 'series' ? (
           <>
-            <Text style={styles.sectionTitle}>Test Series</Text>
-            {series.loading ? <Loading label="Loading test series…" />
+            <SectionHeader title="Test Series" />
+            {series.loading ? <SkeletonList />
               : series.error ? <ErrorBox message={series.error} onRetry={series.reload} />
               : toArray(series.data).length === 0 ? <Empty message="No test series yet." />
-              : toArray(series.data).map((t) => (
+              : toArray(series.data).map((t, i) => (
                 <Link asChild href={{ pathname: '/test/[id]', params: { id: String(t.id) } }} key={t.id}>
-                  <Pressable>
-                    <Card>
-                      <Text style={styles.heading}>{t.title}</Text>
-                      <Text style={styles.muted}>{t.description ?? ''}</Text>
-                      <Text style={{ color: brand.primaryColor, fontWeight: '700', marginTop: 6 }}>Start Test →</Text>
-                    </Card>
-                  </Pressable>
+                  <GatedCard animate={!hasAnimated.current} index={i}>
+                    <Text style={styles.heading}>{t.title}</Text>
+                    {t.description ? (
+                      <Text style={[styles.muted, { marginTop: 2 }]}>{t.description ?? ''}</Text>
+                    ) : null}
+                    <View style={{ alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: 10 }}>
+                      <Text style={{ color: theme.primary, ...type.bodyBold }}>Start Test</Text>
+                      <Ionicons color={theme.primary} name="arrow-forward" size={16} />
+                    </View>
+                  </GatedCard>
                 </Link>
               ))}
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>My Scores</Text>
-            {scores.loading ? <Loading label="Loading scores…" />
+            <SectionHeader title="My Scores" />
+            {scores.loading ? <SkeletonList />
               : scores.error ? <ErrorBox message={scores.error} onRetry={scores.reload} />
               : toArray(scores.data).length === 0 ? <Empty message="No scores yet — attempt a test first." />
               : toArray(scores.data).map((s, i) => (
-                <Card key={s.id ?? i}>
+                <GatedCard animate={!hasAnimated.current} index={i} key={s.id ?? i}>
                   <Text style={styles.heading}>{s.test_series_title ?? s.chapter_test ?? s.title ?? 'Test'}</Text>
-                  <Text style={styles.muted}>
-                    Score: {s.score ?? '—'} / {s.total_marks ?? '—'}
-                    {s.correct !== undefined ? ` • Correct: ${s.correct}/${s.total_questions ?? '—'}` : ''}
+                  <Text
+                    style={{
+                      color: theme.primary,
+                      fontSize: 18,
+                      fontVariant: ['tabular-nums'],
+                      fontWeight: '700',
+                      lineHeight: 24,
+                      marginTop: 8,
+                    }}
+                  >
+                    {s.score ?? '—'} / {s.total_marks ?? '—'}
                   </Text>
-                  {s.created_at ? <Text style={styles.muted}>{s.created_at}</Text> : null}
-                </Card>
+                  {s.correct !== undefined ? (
+                    <View style={{ marginTop: 8 }}>
+                      <Chip label={`Correct: ${s.correct}/${s.total_questions ?? '—'}`} variant="primary" />
+                    </View>
+                  ) : null}
+                  {s.created_at ? (
+                    <Text style={[styles.muted, { marginTop: 8 }]}>{formatShortDate(s.created_at)}</Text>
+                  ) : null}
+                </GatedCard>
               ))}
           </>
         )}

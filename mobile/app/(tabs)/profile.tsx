@@ -1,17 +1,58 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View, type ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { theme, type } from '../../config/theme';
 import { brand } from '../../config/brand';
 import { API_URL, api, inr, toArray } from '../../lib/api';
-import { Card, Empty, ErrorBox, Loading, PrimaryButton, styles } from '../../components/ui';
+import { Avatar, Card, Chip, Empty, ErrorBox, IconTile, Loading, PressableCard, PrimaryButton, SecondaryButton, SectionHeader, styles } from '../../components/ui';
+import { PressScale } from '../../components/motion';
 import { useAuth } from '../../lib/AuthContext';
 import { useApi } from '../../lib/useApi';
 
+/** PressableCard on first mount (staggered entrance); plain card afterwards. */
+function GatedCard({
+  animate,
+  index,
+  onPress,
+  style,
+  children,
+}: {
+  animate: boolean;
+  index: number;
+  onPress?: () => void;
+  style?: ViewStyle;
+  children: ReactNode;
+}) {
+  if (!animate) {
+    return (
+      <PressScale onPress={onPress}>
+        <View style={[styles.card, style]}>{children}</View>
+      </PressScale>
+    );
+  }
+  return (
+    <PressableCard index={index} onPress={onPress} style={style}>
+      {children}
+    </PressableCard>
+  );
+}
+
+type Section = 'main' | 'courses' | 'orders' | 'notifications' | 'help';
+
+const MENU: { label: string; target: Section; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { label: 'My Courses', target: 'courses', icon: 'book' },
+  { label: 'My Orders', target: 'orders', icon: 'receipt' },
+  { label: 'Notifications', target: 'notifications', icon: 'notifications' },
+  { label: 'Help & Support', target: 'help', icon: 'help-circle' },
+];
+
 export default function ProfileScreen() {
   const { student, logout } = useAuth();
-  const [section, setSection] = useState<'main' | 'courses' | 'orders' | 'notifications' | 'help'>('main');
+  const [section, setSection] = useState<Section>('main');
   const [enquiry, setEnquiry] = useState('');
   const [enquiryBusy, setEnquiryBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // Live payment status per order, fetched on demand from /student/payments/{id}.
   const [paymentStatus, setPaymentStatus] = useState<Record<string, { status: string; busy: boolean; error?: string }>>({});
 
@@ -32,6 +73,20 @@ export default function ProfileScreen() {
   const courses = useApi(() => api.myCourses(), []);
   const orders = useApi(() => api.myOrders(), []);
   const notifications = useApi(() => api.notifications(), []);
+  // Staggered entrance only on first mount — later re-renders don't re-animate.
+  const hasAnimated = useRef(false);
+  useEffect(() => {
+    hasAnimated.current = true;
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([courses.reload(), orders.reload(), notifications.reload()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const doLogout = () => {
     Alert.alert('Log out?', 'You will need your OTP to sign in again.', [
@@ -52,53 +107,109 @@ export default function ProfileScreen() {
     } finally { setEnquiryBusy(false); }
   };
 
-  const menu = (label: string, target: typeof section) => (
-    <PrimaryButton key={label} label={label} onPress={() => setSection(target)} />
+  const backRow = (
+    <Pressable
+      hitSlop={8}
+      onPress={() => setSection('main')}
+      style={{ alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: 16, paddingVertical: 8 }}
+    >
+      <Ionicons color={theme.primary} name="arrow-back" size={18} />
+      <Text style={{ color: theme.primary, ...type.bodyBold }}>Back to Profile</Text>
+    </Pressable>
   );
 
   return (
-    <ScrollView style={{ backgroundColor: brand.background, flex: 1 }}>
-      <View style={{ padding: 16 }}>
-        <Text style={styles.title}>{student?.name ?? 'My Profile'}</Text>
-        <Text style={styles.muted}>{student?.phone ? `+91 ${student.phone}` : ''}</Text>
-        {student?.email ? <Text style={styles.muted}>{student.email}</Text> : null}
-        {student?.city || student?.state ? <Text style={styles.muted}>{[student.city, student.state].filter(Boolean).join(', ')}</Text> : null}
+    <ScrollView
+      refreshControl={<RefreshControl colors={[theme.primary]} onRefresh={() => void onRefresh()} refreshing={refreshing} tintColor={theme.primary} />}
+      style={{ backgroundColor: theme.background, flex: 1 }}
+    >
+      <View style={{ padding: 20 }}>
+        {/* Header card */}
+        <Card>
+          <View style={{ alignItems: 'center', flexDirection: 'row', gap: 14 }}>
+            <Avatar name={student?.name ?? 'Student'} size={56} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: theme.text, fontSize: 20, fontWeight: '700', lineHeight: 26 }}>
+                {student?.name ?? 'My Profile'}
+              </Text>
+              {student?.phone ? (
+                <Text style={[styles.muted, { marginTop: 2 }]}>+91 {student.phone}</Text>
+              ) : null}
+              {student?.email ? <Text style={styles.muted}>{student.email}</Text> : null}
+              {student?.city || student?.state ? (
+                <Text style={styles.muted}>{[student.city, student.state].filter(Boolean).join(', ')}</Text>
+              ) : null}
+            </View>
+          </View>
+        </Card>
 
         {section === 'main' ? (
-          <View style={{ gap: 10, marginTop: 16 }}>
-            {menu('My Courses', 'courses')}
-            {menu('My Orders', 'orders')}
-            {menu('Notifications', 'notifications')}
-            {menu('Help & Support', 'help')}
-            <Card>
-              <Text style={styles.heading}>Settings</Text>
+          <View style={{ marginTop: 4 }}>
+            {MENU.map((m, i) => (
+              <GatedCard
+                animate={!hasAnimated.current}
+                index={i}
+                key={m.label}
+                onPress={() => setSection(m.target)}
+              >
+                <View style={{ alignItems: 'center', flexDirection: 'row', gap: 14 }}>
+                  <IconTile icon={m.icon} size={40} variant="primary" />
+                  <Text style={{ color: theme.text, flex: 1, ...type.heading }}>{m.label}</Text>
+                  <Ionicons color={theme.muted} name="chevron-forward" size={20} />
+                </View>
+              </GatedCard>
+            ))}
+
+            <SectionHeader title="Settings" />
+            <View style={{ gap: 4 }}>
               <Text style={styles.muted}>API URL: {API_URL}</Text>
               <Text style={styles.muted}>Institute: {brand.instituteName} ({brand.orgCode})</Text>
               <Text style={styles.muted}>Theme: primary {brand.primaryColor}, accent {brand.accentColor}</Text>
               <Text style={styles.muted}>App: {brand.appName} v3.0.0 (Phase 4)</Text>
-            </Card>
-            <PrimaryButton label="Log Out" onPress={doLogout} />
+            </View>
+
+            <View style={{ marginTop: 20 }}>
+              <GatedCard
+                animate={!hasAnimated.current}
+                index={MENU.length}
+                onPress={doLogout}
+                style={{ borderColor: theme.danger }}
+              >
+                <View style={{ alignItems: 'center', flexDirection: 'row', gap: 14 }}>
+                  <Ionicons color={theme.danger} name="log-out" size={22} />
+                  <Text style={{ color: theme.danger, flex: 1, ...type.heading }}>Log Out</Text>
+                </View>
+              </GatedCard>
+            </View>
           </View>
         ) : (
-          <View style={{ marginTop: 16 }}>
-            <PrimaryButton label="← Back to Profile" onPress={() => setSection('main')} />
-          </View>
+          backRow
         )}
 
         {section === 'courses' && (
           <>
-            <Text style={styles.sectionTitle}>My Courses</Text>
+            <SectionHeader title="My Courses" />
             {courses.loading ? <Loading label="Loading my courses…" />
               : courses.error ? <ErrorBox message={courses.error} onRetry={courses.reload} />
               : toArray(courses.data).length === 0 ? <Empty message="No purchased courses yet." />
-              : toArray(courses.data).map((c) => (
-                <Card key={c.id}><Text style={styles.heading}>{c.title}</Text><Text style={styles.muted}>{c.description ?? ''}</Text></Card>
+              : toArray(courses.data).map((c, i) => (
+                <GatedCard animate={!hasAnimated.current} index={i} key={c.id}>
+                  <View style={{ alignItems: 'center', flexDirection: 'row', gap: 14 }}>
+                    <IconTile initial={(c.title ?? 'C').charAt(0).toUpperCase()} size={48} variant="dark" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.heading}>{c.title}</Text>
+                      {c.description ? (
+                        <Text style={[styles.muted, { marginTop: 2 }]}>{c.description ?? ''}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                </GatedCard>
               ))}
           </>
         )}
         {section === 'orders' && (
           <>
-            <Text style={styles.sectionTitle}>My Orders</Text>
+            <SectionHeader title="My Orders" />
             {orders.loading ? <Loading label="Loading orders…" />
               : orders.error ? <ErrorBox message={orders.error} onRetry={orders.reload} />
               : toArray(orders.data).length === 0 ? <Empty message="No orders yet." />
@@ -108,42 +219,52 @@ export default function ProfileScreen() {
                 const paymentOrderId = o.transaction_id ?? String(o.id);
                 const key = String(paymentOrderId);
                 const live = paymentStatus[key];
+                const statusUpper = (o.status ?? '').toUpperCase();
+                const statusVariant = statusUpper === 'SUCCESS' ? 'green' : statusUpper === 'PENDING' ? 'amber' : 'danger';
                 return (
-                  <Card key={o.id ?? i}>
+                  <GatedCard animate={!hasAnimated.current} index={i} key={o.id ?? i}>
                     <Text style={styles.heading}>Order #{o.transaction_id ?? o.id}</Text>
-                    <Text style={styles.muted}>Amount: {inr(o.amount)} • Status: {o.status ?? '—'}</Text>
-                    {o.created_at ? <Text style={styles.muted}>{o.created_at}</Text> : null}
-                    {live?.status ? <Text style={[styles.muted, { fontWeight: '700' }]}>Payment status: {live.status}</Text> : null}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                      <Chip label={`Amount: ${inr(o.amount)}`} variant="default" />
+                      {o.status ? <Chip label={statusUpper} variant={statusVariant} /> : null}
+                    </View>
+                    {o.created_at ? <Text style={[styles.muted, { marginTop: 8 }]}>{o.created_at}</Text> : null}
+                    {live?.status ? <Text style={[styles.muted, { fontWeight: '700', marginTop: 6 }]}>Payment status: {live.status}</Text> : null}
                     {live?.error ? <Text style={styles.errorText}>{live.error}</Text> : null}
-                    <View style={{ marginTop: 10 }}>
-                      <PrimaryButton
+                    <View style={{ marginTop: 12 }}>
+                      <SecondaryButton
                         disabled={live?.busy}
                         label={live?.busy ? 'Checking…' : 'Check Payment Status'}
                         onPress={() => void checkPaymentStatus(paymentOrderId)}
                       />
                     </View>
-                  </Card>
+                  </GatedCard>
                 );
               })}
           </>
         )}
         {section === 'notifications' && (
           <>
-            <Text style={styles.sectionTitle}>Notifications</Text>
+            <SectionHeader title="Notifications" />
             {notifications.loading ? <Loading label="Loading notifications…" />
               : notifications.error ? <ErrorBox message={notifications.error} onRetry={notifications.reload} />
               : toArray(notifications.data).length === 0 ? <Empty message="No notifications." />
               : toArray(notifications.data).map((n, i) => (
-                <Card key={n.id ?? i}>
-                  <Text style={styles.heading}>{n.title}</Text>
-                  <Text style={styles.muted}>{n.message ?? n.body ?? ''}</Text>
-                </Card>
+                <GatedCard animate={!hasAnimated.current} index={i} key={n.id ?? i}>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <IconTile icon="notifications" size={40} variant="primary" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.heading}>{n.title}</Text>
+                      <Text style={[styles.muted, { marginTop: 2 }]}>{n.message ?? n.body ?? ''}</Text>
+                    </View>
+                  </View>
+                </GatedCard>
               ))}
           </>
         )}
         {section === 'help' && (
           <>
-            <Text style={styles.sectionTitle}>Help & Support</Text>
+            <SectionHeader title="Help & Support" />
             <Card>
               <Text style={styles.heading}>Send an enquiry</Text>
               <TextInput
