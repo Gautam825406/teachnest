@@ -185,7 +185,7 @@ export default function AiGeneratorPage() {
       ) : aiConfigured === false ? (
         <Card className="mb-6 border-amber-200 bg-amber-50 p-5 dark:border-amber-900 dark:bg-amber-950">
           <p className="text-lg font-bold">AI not configured — set GROQ_API_KEY</p>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
             The AI Question Paper Generator needs a Groq API key. Set <code className="font-mono">GROQ_API_KEY</code> in
             the backend environment variables on Render and restart the backend. No questions are generated until then —
             nothing on this page is faked.
@@ -206,7 +206,7 @@ export default function AiGeneratorPage() {
         <form onSubmit={generate} className="mt-4 space-y-4">
           <Field label="Source file" hint="PDF, TXT, XLSX, CSV, DOCX or image. The file is sent to the backend for AI generation; it is not stored in the browser.">
             <Input type="file" accept={ACCEPTED} onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            {file && <p className="mt-1 text-xs text-slate-500">Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)</p>}
+            {file && <p className="mt-1 text-xs text-stone-500">Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)</p>}
           </Field>
           <Field label="Or paste source text">
             <Textarea rows={5} value={pastedText} onChange={(e) => setPastedText(e.target.value)} placeholder="Paste the chapter or notes the questions should be based on..." />
@@ -244,7 +244,7 @@ export default function AiGeneratorPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold">Draft questions — review and edit</h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-stone-500">
                 {drafts.length} draft question(s){generationId ? ` • Generation ${generationId}` : ""}. Edit anything
                 before saving; drafts are not in any test series yet.
               </p>
@@ -253,7 +253,7 @@ export default function AiGeneratorPage() {
           </div>
           <div className="mt-4 space-y-5">
             {drafts.map((d, i) => (
-              <div key={d.key} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+              <div key={d.key} className="rounded-lg border border-stone-200 p-4 dark:border-stone-700">
                 <div className="flex items-start justify-between gap-3">
                   <p className="font-semibold">Q{i + 1}</p>
                   <Button variant="danger" className="px-3 py-1 text-xs" onClick={() => removeDraft(d.key)}>Remove</Button>
@@ -295,7 +295,7 @@ export default function AiGeneratorPage() {
               </div>
             ))}
           </div>
-          <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+          <div className="mt-5 border-t border-stone-200 pt-4 dark:border-stone-700">
             <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
               <Field label="Save to Test Series" required>
                 <Select value={targetSeries} onChange={(e) => setTargetSeries(e.target.value)} required>
@@ -310,8 +310,8 @@ export default function AiGeneratorPage() {
               </Button>
             </div>
             {series.length === 0 && (
-              <p className="mt-2 text-sm text-slate-500">
-                No test series yet — <Link href="/dashboard/test-series" className="font-semibold text-indigo-600 underline">create one first</Link>.
+              <p className="mt-2 text-sm text-stone-500">
+                No test series yet — <Link href="/dashboard/test-series" className="font-semibold text-brand-700 underline dark:text-brand-300">create one first</Link>.
               </p>
             )}
             <ErrorBox message={saveError} />
@@ -329,9 +329,9 @@ export default function AiGeneratorPage() {
           <h2 className="text-lg font-bold">Past generations</h2>
           <div className="mt-3 space-y-2">
             {generations.map((g) => (
-              <div key={String(g.generation_id ?? g.id)} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2 text-sm last:border-0 dark:border-slate-800">
+              <div key={String(g.generation_id ?? g.id)} className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2 text-sm last:border-0 dark:border-stone-800">
                 <span className="font-medium">{g.topic || "Untitled generation"}</span>
-                <span className="text-slate-500">
+                <span className="text-stone-500">
                   {g.class_name || ""} • {g.difficulty || ""} • {g.count ?? g.draft_json?.length ?? g.questions?.length ?? 0} question(s)
                   {g.status ? ` • ${g.status}` : ""}
                   {g.created_at ? ` • ${new Date(g.created_at).toLocaleString("en-IN")}` : ""}

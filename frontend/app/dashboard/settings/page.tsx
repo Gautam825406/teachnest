@@ -71,7 +71,7 @@ export default function SettingsPage() {
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Company Information</h2>
-              <p className="text-sm text-slate-500">Update your core business details and online presence.</p>
+              <p className="text-sm text-stone-500">Update your core business details and online presence.</p>
             </div>
             {editing ? (
               <div className="flex gap-2">

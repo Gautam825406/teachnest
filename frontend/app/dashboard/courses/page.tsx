@@ -74,13 +74,13 @@ export default function CoursesPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((c) => (
               <Card key={String(c.id)} className="overflow-hidden">
-                <div className="flex h-36 items-center justify-center bg-gradient-to-br from-indigo-500 to-slate-800 text-sm font-medium text-white">
+                <div className="flex h-36 items-center justify-center bg-brand-700 text-sm font-medium text-white">
                   {c.thumbnail_url ? c.thumbnail_url : "Course Thumbnail"}
                 </div>
                 <div className="p-4">
                   <h3 className="font-bold">{c.title}</h3>
-                  <p className="mt-1 text-xs text-slate-500">ID: {String(c.id)}</p>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Validity: {c.validity_days ? `${c.validity_days} Days` : "—"}</p>
+                  <p className="mt-1 text-xs text-stone-500">ID: {String(c.id)}</p>
+                  <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">Validity: {c.validity_days ? `${c.validity_days} Days` : "—"}</p>
                   <p className="mt-1 text-lg font-bold">{formatINR(c.price)}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button variant="secondary" className="flex-1">Buy Now</Button>

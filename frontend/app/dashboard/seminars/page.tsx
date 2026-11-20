@@ -35,7 +35,7 @@ function LiveConfigBanner() {
         <Badge tone={configured ? "green" : "slate"}>
           {configured ? `LIVE — ${config.provider || "provider"}` : "DEMO"}
         </Badge>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-stone-500">
           {configured
             ? `Live classes are hosted on ${config.provider || "the configured provider"}.`
             : `Live classes are not configured yet (provider: ${config.provider || "100ms / Agora"}). Seminars are demo-only until a live provider is configured — no real class is live.`}

@@ -60,11 +60,11 @@ export default function RolesPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-bold">{r.name}</p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-stone-500">
                     {r.is_system_default ? <Badge tone="indigo">System Default</Badge> : <Badge>Custom Role</Badge>}
                   </p>
-                  <p className="mt-2 text-sm text-slate-500">{(r.permissions || []).length} permissions</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-slate-500">{(r.permissions || []).join(", ")}</p>
+                  <p className="mt-2 text-sm text-stone-500">{(r.permissions || []).length} permissions</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-stone-500">{(r.permissions || []).join(", ")}</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <Button variant="secondary" onClick={() => openEdit(r)}>Edit</Button>
@@ -81,10 +81,10 @@ export default function RolesPage() {
           <Field label="Role Name" required><Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Teacher" /></Field>
           <div>
             <p className="mb-2 text-sm font-medium">Permissions ({PERMISSIONS.length})</p>
-            <div className="grid max-h-72 grid-cols-1 gap-1 overflow-y-auto rounded-lg border border-slate-300 p-3 sm:grid-cols-2 dark:border-slate-700">
+            <div className="grid max-h-72 grid-cols-1 gap-1 overflow-y-auto rounded-lg border border-stone-300 p-3 sm:grid-cols-2 dark:border-stone-700">
               {PERMISSIONS.map((p) => (
                 <label key={p} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={permissions.includes(p)} onChange={() => setPermissions(permissions.includes(p) ? permissions.filter((x) => x !== p) : [...permissions, p])} className="h-4 w-4 accent-indigo-600" />
+                  <input type="checkbox" checked={permissions.includes(p)} onChange={() => setPermissions(permissions.includes(p) ? permissions.filter((x) => x !== p) : [...permissions, p])} className="h-4 w-4 accent-brand-700" />
                   {p}
                 </label>
               ))}

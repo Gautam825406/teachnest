@@ -11,7 +11,7 @@ export default function Page() {
       searchPlaceholder="Search test assignments..."
       headerActions={
         <a href="/dashboard/test-assignments/student-assignments">
-          <button type="button" className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200">Student Assignments</button>
+          <button type="button" className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-stone-700 border border-stone-300 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200">Student Assignments</button>
         </a>
       }
       fields={[

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, asList, formatDate, formatINR, resolveFileUrl, uploadFile, type AnyRecord } from "@/lib/api";
-import { Badge, BannerHeader, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Modal, Select, Textarea } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Modal, PageHeader, Select, Textarea } from "@/components/ui";
 
 export type FieldType = "text" | "number" | "textarea" | "select" | "date" | "datetime" | "checkbox" | "file" | "multi" | "url" | "email" | "tel";
 
@@ -76,7 +76,7 @@ function displayValue(row: AnyRecord, col: CrudColumn): React.ReactNode {
   }
   if (col.format === "link") {
     const url = resolveFileUrl(String(v));
-    return <a href={url} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 hover:underline">Open file</a>;
+    return <a href={url} target="_blank" rel="noreferrer" className="font-medium text-brand-700 hover:underline dark:text-brand-300">Open file</a>;
   }
   if (Array.isArray(v)) return v.join(", ");
   if (typeof v === "object") return JSON.stringify(v);
@@ -244,7 +244,7 @@ export default function CrudPage(props: CrudPageProps) {
 
   return (
     <div>
-      <BannerHeader
+      <PageHeader
         title={title}
         subtitle={subtitle}
         actions={
@@ -256,9 +256,9 @@ export default function CrudPage(props: CrudPageProps) {
         }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Badge tone="indigo">TOTAL {total}</Badge>
+        <Badge tone="slate">TOTAL {total}</Badge>
         {searchPlaceholder && (
-          <Input placeholder={searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+          <Input placeholder={searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 max-w-xs" />
         )}
       </div>
       <ErrorBox message={error} />
@@ -266,28 +266,28 @@ export default function CrudPage(props: CrudPageProps) {
         <EmptyState title={emptyTitle || `No ${itemLabel.toLowerCase()}s yet`} subtitle={emptySubtitle || `Create your first ${itemLabel.toLowerCase()} to get started.`} />
       ) : (
         <Card className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
+          <table className="w-full min-w-[720px] text-left text-[13px]">
+            <thead className="sticky top-0 border-b border-stone-200 bg-stone-50 dark:border-stone-800 dark:bg-stone-800/50">
               <tr>
                 {columns.map((c) => (
-                  <th key={c.key} className="px-4 py-3 font-semibold">{c.label}</th>
+                  <th key={c.key} className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 ${c.format === "inr" || c.format === "date" ? "text-right" : ""}`}>{c.label}</th>
                 ))}
-                {showActions && <th className="px-4 py-3 font-semibold">ACTIONS</th>}
+                {showActions && <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">ACTIONS</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-stone-200 dark:divide-stone-800">
               {items.map((row) => (
-                <tr key={String(row.id)}>
+                <tr key={String(row.id)} className="hover:bg-stone-50 dark:hover:bg-stone-800/50">
                   {columns.map((c) => (
-                    <td key={c.key} className="max-w-64 truncate px-4 py-3">{displayValue(row, c)}</td>
+                    <td key={c.key} className={`max-w-64 truncate px-4 py-3 ${c.format === "inr" || c.format === "date" ? "text-right tabular-nums" : ""}`}>{displayValue(row, c)}</td>
                   ))}
                   {showActions && (
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        {detailHref && <Link href={detailHref(row)}><Button variant="secondary" className="px-3 py-1 text-xs">{detailLabel}</Button></Link>}
-                        {allowEdit && <Button variant="secondary" className="px-3 py-1 text-xs" onClick={() => openEdit(row)}>Edit</Button>}
+                        {detailHref && <Link href={detailHref(row)}><Button variant="secondary" className="h-8 px-3 text-xs">{detailLabel}</Button></Link>}
+                        {allowEdit && <Button variant="secondary" className="h-8 px-3 text-xs" onClick={() => openEdit(row)}>Edit</Button>}
                         {allowDelete && (
-                          <Button variant="danger" className="px-3 py-1 text-xs" onClick={() => remove(row)} disabled={deleting === String(row.id)}>Delete</Button>
+                          <Button variant="danger" className="h-8 px-3 text-xs" onClick={() => remove(row)} disabled={deleting === String(row.id)}>Delete</Button>
                         )}
                       </div>
                     </td>
@@ -316,12 +316,12 @@ export default function CrudPage(props: CrudPageProps) {
                     </Select>
                   ) : f.type === "checkbox" ? (
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={!!form[f.key]} onChange={(e) => set(f.key, e.target.checked)} className="h-4 w-4 accent-indigo-600" />
+                      <input type="checkbox" checked={!!form[f.key]} onChange={(e) => set(f.key, e.target.checked)} className="h-4 w-4 accent-brand-700" />
                       {f.label}
                     </label>
                   ) : f.type === "multi" ? (
-                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-300 p-3 dark:border-slate-700">
-                      {optionsFor(f).length === 0 && <p className="text-sm text-slate-500">No options available yet.</p>}
+                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-stone-300 p-3 dark:border-stone-700">
+                      {optionsFor(f).length === 0 && <p className="text-sm text-stone-500">No options available yet.</p>}
                       {optionsFor(f).map((o) => (
                         <label key={o.value} className="flex items-center gap-2 text-sm">
                           <input
@@ -331,7 +331,7 @@ export default function CrudPage(props: CrudPageProps) {
                               const cur = ((form[f.key] as string[]) || []);
                               set(f.key, cur.includes(o.value) ? cur.filter((x) => x !== o.value) : [...cur, o.value]);
                             }}
-                            className="h-4 w-4 accent-indigo-600"
+                            className="h-4 w-4 accent-brand-700"
                           />
                           {o.label}
                         </label>
@@ -340,8 +340,8 @@ export default function CrudPage(props: CrudPageProps) {
                   ) : f.type === "file" ? (
                     <div>
                       <Input type="file" accept={f.accept} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFile(f, file); }} />
-                      {uploading === f.key && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
-                      {!!form[f.key] && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {String(form[f.key])}</p>}
+                      {uploading === f.key && <p className="mt-1 text-xs text-stone-500">Uploading...</p>}
+                      {!!form[f.key] && <p className="mt-1 break-all text-xs text-stone-500">Uploaded: {String(form[f.key])}</p>}
                     </div>
                   ) : (
                     <Input

@@ -27,17 +27,17 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
       <PageHeader title={name} subtitle={`Student ID: ${String(student.id)}`} actions={<Link href="/dashboard/students"><Button variant="secondary">Back to Students</Button></Link>} />
       <Card className="p-6">
         <div className="mb-6 flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-2xl font-bold text-white">{name.trim().charAt(0).toUpperCase()}</div>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-700 text-2xl font-bold text-white">{name.trim().charAt(0).toUpperCase()}</div>
           <div>
             <p className="text-lg font-bold">{name}</p>
-            <p className="text-sm text-slate-500">{String(student.masked_phone || student.phone || "")}</p>
-            <p className="text-sm text-slate-500">{String(student.email || "")}</p>
+            <p className="text-sm text-stone-500">{String(student.masked_phone || student.phone || "")}</p>
+            <p className="text-sm text-stone-500">{String(student.email || "")}</p>
           </div>
         </div>
         <dl className="grid gap-4 sm:grid-cols-2">
           {entries.map(([key, value]) => (
-            <div key={key} className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{key.replace(/_/g, " ")}</dt>
+            <div key={key} className="rounded-lg bg-stone-50 p-3 dark:bg-stone-800">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-stone-500">{key.replace(/_/g, " ")}</dt>
               <dd className="mt-1 break-words text-sm">
                 {typeof value === "string" && (key.includes("date") || key.includes("created") || key.includes("updated")) ? formatDate(value) : Array.isArray(value) ? value.join(", ") : value === null || value === undefined ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value)}
               </dd>

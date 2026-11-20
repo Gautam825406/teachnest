@@ -11,6 +11,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!getToken()) router.replace("/login");
     else setReady(true);
   }, [router]);
-  if (!ready) return <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Loading...</div>;
+  if (!ready) return <div className="flex min-h-screen items-center justify-center text-sm text-stone-500">Loading...</div>;
   return <AppShell>{children}</AppShell>;
 }

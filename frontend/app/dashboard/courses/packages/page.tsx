@@ -142,7 +142,7 @@ export default function PackagesPage() {
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
+            <thead className="border-b border-stone-200 bg-stone-50 dark:border-stone-800 dark:bg-stone-800">
               <tr>
                 <th className="px-4 py-3 font-semibold">PACKAGE</th>
                 <th className="px-4 py-3 font-semibold">COURSES</th>
@@ -152,12 +152,12 @@ export default function PackagesPage() {
                 <th className="px-4 py-3 font-semibold">ACTIONS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-stone-200 dark:divide-stone-800">
               {packages.map((p) => (
                 <tr key={String(p.id)}>
                   <td className="px-4 py-3">
                     <p className="font-medium">{p.name}</p>
-                    {p.description && <p className="max-w-64 truncate text-xs text-slate-500">{p.description}</p>}
+                    {p.description && <p className="max-w-64 truncate text-xs text-stone-500">{p.description}</p>}
                   </td>
                   <td className="max-w-64 px-4 py-3">
                     {(p.course_ids || []).length === 0 ? "—" : (p.course_ids || []).map(courseTitle).join(", ")}
@@ -192,8 +192,8 @@ export default function PackagesPage() {
             <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What does this package include?" />
           </Field>
           <Field label="Courses" required hint="Select the courses included in this package.">
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-300 p-3 dark:border-slate-700">
-              {courses.length === 0 && <p className="text-sm text-slate-500">No courses available yet.</p>}
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-stone-300 p-3 dark:border-stone-700">
+              {courses.length === 0 && <p className="text-sm text-stone-500">No courses available yet.</p>}
               {courses.map((c) => (
                 <label key={String(c.id)} className="flex items-center gap-2 text-sm">
                   <input
@@ -203,7 +203,7 @@ export default function PackagesPage() {
                       const id = String(c.id);
                       setCourseIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
                     }}
-                    className="h-4 w-4 accent-indigo-600"
+                    className="h-4 w-4 accent-brand-700"
                   />
                   {c.title}
                 </label>
@@ -219,7 +219,7 @@ export default function PackagesPage() {
             </Field>
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4 accent-indigo-600" />
+            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4 accent-brand-700" />
             Active (students can buy this package)
           </label>
           <ErrorBox message={formError} />

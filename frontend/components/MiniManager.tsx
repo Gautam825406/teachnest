@@ -86,28 +86,28 @@ export default function MiniManager({
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-bold">{title}</h2>
-        <Button variant="secondary" className="px-3 py-1 text-xs" onClick={load}>Refresh</Button>
+        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+        <Button variant="secondary" className="h-8 px-3 text-xs" onClick={load}>Refresh</Button>
       </div>
       <ErrorBox message={error} />
       {loading ? (
-        <p className="mt-3 text-sm text-slate-500">Loading...</p>
+        <p className="mt-3 text-sm text-stone-500">Loading...</p>
       ) : items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">No {itemLabel.toLowerCase()}s yet.</p>
+        <p className="mt-3 text-sm text-stone-500">No {itemLabel.toLowerCase()}s yet.</p>
       ) : (
-        <ul className="mt-3 divide-y divide-slate-200 dark:divide-slate-800">
+        <ul className="mt-3 divide-y divide-stone-200 dark:divide-stone-800">
           {items.map((row) => (
             <li key={String(row.id)} className="flex items-center justify-between gap-3 py-2 text-sm">
               <span className="min-w-0 flex-1 truncate">
                 {displayKeys.map((k) => String(row[k] ?? "")).filter(Boolean).join(" • ") || String(row.id)}
               </span>
-              <Button variant="danger" className="px-2 py-1 text-xs" onClick={() => remove(row)} disabled={deleting === String(row.id)}>Delete</Button>
+              <Button variant="danger" className="h-8 px-2 text-xs" onClick={() => remove(row)} disabled={deleting === String(row.id)}>Delete</Button>
             </li>
           ))}
         </ul>
       )}
-      <form onSubmit={save} className="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-800">
-        <div className="grid gap-3 sm:grid-cols-2">
+      <form onSubmit={save} className="mt-4 space-y-4 border-t border-stone-200 pt-4 dark:border-stone-800">
+        <div className="grid gap-4 sm:grid-cols-2">
           {fields.map((f) => (
             <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
               <Field label={f.label} required={f.required}>
@@ -123,8 +123,8 @@ export default function MiniManager({
                 ) : f.type === "file" ? (
                   <div>
                     <Input type="file" accept={f.accept} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFile(f, file); }} />
-                    {uploading === f.key && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
-                    {!!form[f.key] && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {String(form[f.key])}</p>}
+                    {uploading === f.key && <p className="mt-1 text-xs text-stone-500">Uploading...</p>}
+                    {!!form[f.key] && <p className="mt-1 break-all text-xs text-stone-500">Uploaded: {String(form[f.key])}</p>}
                   </div>
                 ) : (
                   <Input

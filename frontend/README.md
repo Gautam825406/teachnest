@@ -92,3 +92,50 @@ If a Phase 4 endpoint is not deployed yet (404), the page shows an honest
   date filter is the one that re-fetches stats.
 - Theme (dark/light) is persisted in `localStorage` (`cw_theme`).
 - Command palette: Ctrl/Cmd+K (or the "Quick find..." box) jumps to pages.
+
+## Design system
+
+The admin panel is styled to look like a polished product built by an
+experienced team — restrained, dense, and consistent. Follow these rules
+for every new page or component; do not reintroduce the old flat
+slate/indigo look.
+
+- **Typography:** Inter (loaded in `app/layout.tsx` via `next/font/google`,
+  variable `--font-inter`, weights 400/500/600/700). Body 14px / 1.5.
+  Page titles `text-xl font-semibold tracking-tight`; section labels
+  11px uppercase `tracking-wider`. Money and counts use `tabular-nums`
+  (see the `.tnum` helper in `app/globals.css`); ₹ uses Indian grouping
+  via `formatINR` in `lib/api.ts`.
+- **Palette:** one primary — deep desaturated navy `brand`
+  (`tailwind.config.ts`): 50 `#eef1f8`, 100 `#dfe4f0`, 200 `#c3cbe0`,
+  300 `#9aa8c6`, 400 `#6f80a8`, 500 `#4c5e8a`, 600 `#2f3f6e`,
+  700 `#263258` (primary actions, hover `brand-800`), 800 `#1e2a4a`,
+  900 `#17213c`, 950 `#0f172e`. Neutrals are warm stone, not cold
+  blue-grey: light page `stone-50`, card white, border `stone-200`,
+  secondary text `stone-500`; dark page `stone-950`, card `stone-900`,
+  border `stone-800`. Status colours are muted and sparse:
+  success `emerald-700` on `emerald-50`, warning `amber-700` on
+  `amber-50`, danger `red-700` on `red-50` (dark: `*-300` on `*-950`).
+- **Forbidden:** gradients (including gradient text), rainbow icon
+  colours, glassmorphism, `rounded-3xl`, oversized hero-style headings
+  inside the tool. Icons are Lucide, one muted tone (`stone-500`,
+  active `brand-700`) — never coloured icon blobs.
+- **Spacing / radius:** 4/8px scale, 24px content gutters,
+  `max-w-[1200px]` content container. Cards `rounded-[10px]`, 1px border,
+  `shadow-sm` only (modals `shadow-lg`). Buttons/inputs `h-9`/`h-10`,
+  `rounded-lg`, focus ring `brand-600`.
+- **Components (`components/ui.tsx`):** `Button` (primary/secondary/
+  ghost/danger), `Input`/`Select`/`Textarea`, `Label`/`Field`, `Card`,
+  `Badge` (muted text-only pills), `PageHeader`, `BannerHeader` (flat
+  card with a 3px `brand-700` left accent — never a gradient),
+  `ErrorBox`, `EmptyState` (small icon + real copy), `Loading`
+  (spinner), `Modal` (overlay `black/60`, Esc closes).
+- **Shell (`components/AppShell.tsx`):** sidebar section labels 11px
+  uppercase; active nav item gets a `brand-50` background plus a 3px
+  `brand-600` left bar; sidebar footer carries the "TeachNest • v3.0.0"
+  wordmark. Tables (see `components/CrudPage.tsx`): sticky header row,
+  12px uppercase header cells, 13px body, row hover, right-aligned
+  numerics, status as dot + muted pill.
+- **Dark mode:** class-based (`dark` on `<html>`, persisted as
+  `cw_theme` in localStorage). Every new surface needs its `dark:`
+  variant from the warm stone scale — never rely on inverted grey.

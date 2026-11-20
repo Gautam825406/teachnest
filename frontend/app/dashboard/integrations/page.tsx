@@ -200,9 +200,9 @@ export default function IntegrationsPage() {
                       {configured ? "CONFIGURED" : "NOT CONFIGURED"}
                     </Badge>
                   </div>
-                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{c.description}</p>
+                  <p className="mt-3 text-sm text-stone-600 dark:text-stone-300">{c.description}</p>
                   <p className="mt-2 text-sm font-medium">{status ? c.detail(status) : "Status unavailable — backend endpoint not responding yet."}</p>
-                  <p className="mt-2 text-xs text-slate-500">Needs: {c.envVars}</p>
+                  <p className="mt-2 text-xs text-stone-500">Needs: {c.envVars}</p>
                 </Card>
               );
             })}
@@ -211,7 +211,7 @@ export default function IntegrationsPage() {
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <Card className="p-5">
               <h3 className="text-lg font-bold">Send a WhatsApp test message</h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-stone-500">
                 Sends a real message through the configured WhatsApp provider. If WhatsApp is not configured, the
                 backend returns an honest “not configured” error — nothing is faked.
               </p>
@@ -241,7 +241,7 @@ export default function IntegrationsPage() {
 
             <Card className="p-5">
               <h3 className="text-lg font-bold">Send a push notification</h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-stone-500">
                 Sends a push notification to the student mobile app through FCM. If push is not configured, the
                 backend returns an honest “not configured” error.
               </p>
@@ -279,8 +279,8 @@ export default function IntegrationsPage() {
                       </Badge>
                     </div>
                     {i.badge && <p className="mt-1"><Badge tone="amber">{i.badge}</Badge></p>}
-                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{i.description || ""}</p>
-                    {i.category && <p className="mt-2 text-xs text-slate-500">Category: {i.category}</p>}
+                    <p className="mt-3 text-sm text-stone-600 dark:text-stone-300">{i.description || ""}</p>
+                    {i.category && <p className="mt-2 text-xs text-stone-500">Category: {i.category}</p>}
                     <div className="mt-4">
                       <Button variant="secondary" onClick={() => setup(i.provider)} disabled={busy === i.provider}>
                         {busy === i.provider ? "Setting up..." : "Set Up"}

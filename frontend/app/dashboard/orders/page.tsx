@@ -184,7 +184,7 @@ export default function OrdersPage() {
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[1050px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
+            <thead className="border-b border-stone-200 bg-stone-50 dark:border-stone-800 dark:bg-stone-800">
               <tr>
                 <th className="px-4 py-3 font-semibold">STUDENT</th>
                 <th className="px-4 py-3 font-semibold">CONTACT</th>
@@ -196,7 +196,7 @@ export default function OrdersPage() {
                 <th className="px-4 py-3 font-semibold">ACTIONS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-stone-200 dark:divide-stone-800">
               {orders.map((o) => (
                 <tr key={String(o.id)}>
                   <td className="px-4 py-3 font-medium">{studentName(o)}</td>
@@ -227,7 +227,7 @@ export default function OrdersPage() {
                         <Button variant="danger" className="px-3 py-1 text-xs" onClick={() => { setDeactivateOrder(o); setActionError(null); }}>Deactivate</Button>
                       </div>
                     ) : (
-                      <span className="text-slate-500">Deactivated</span>
+                      <span className="text-stone-500">Deactivated</span>
                     )}
                   </td>
                 </tr>
@@ -244,7 +244,7 @@ export default function OrdersPage() {
 
       <Modal open={!!transferOrder} title="Transfer Order" onClose={() => setTransferOrder(null)}>
         <div className="space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
             Transfer order {transferOrder ? String(transferOrder.transaction_id || transferOrder.id) : ""} ({transferOrder ? studentName(transferOrder) : ""}) to another student.
           </p>
           <Field label="Transfer To Student" required>
@@ -265,7 +265,7 @@ export default function OrdersPage() {
 
       <Modal open={!!refundOrder} title="Refund Order" onClose={() => setRefundOrder(null)}>
         <div className="space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
             Refund order {refundOrder ? String(refundOrder.transaction_id || refundOrder.id) : ""} ({refundOrder ? formatINR(amountOf(refundOrder)) : ""}).
           </p>
           <Field label="Refund Reason" required>
@@ -281,7 +281,7 @@ export default function OrdersPage() {
 
       <Modal open={!!deactivateOrder} title="Deactivate Order" onClose={() => setDeactivateOrder(null)}>
         <div className="space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
             Deactivate this order? The student will lose access to the purchased course content.
           </p>
           <ErrorBox message={actionError} />

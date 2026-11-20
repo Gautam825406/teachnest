@@ -48,14 +48,14 @@ export default function OtpUsagePage() {
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
+            <thead className="border-b border-stone-200 bg-stone-50 dark:border-stone-800 dark:bg-stone-800">
               <tr>
                 <th className="px-4 py-3 font-semibold">MOBILE</th>
                 <th className="px-4 py-3 font-semibold">OTP</th>
                 <th className="px-4 py-3 font-semibold">SENT AT</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-stone-200 dark:divide-stone-800">
               {rows.map((r) => (
                 <tr key={String(r.id)}>
                   <td className="px-4 py-3 font-medium">{String(r.mobile || "—")}</td>

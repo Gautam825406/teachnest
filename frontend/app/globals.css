@@ -5,5 +5,38 @@
 :root { color-scheme: light; }
 .dark { color-scheme: dark; }
 html, body { min-height: 100%; }
-body { @apply bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100; }
-input, select, textarea { @apply bg-white dark:bg-slate-900; }
+
+@layer base {
+  body {
+    @apply bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  input, select, textarea {
+    @apply border-stone-300 bg-white text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100;
+  }
+
+  input::placeholder, textarea::placeholder {
+    @apply text-stone-400;
+  }
+
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-600 ring-offset-1 ring-offset-stone-50 dark:ring-offset-stone-950;
+  }
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -69,12 +69,12 @@ export default function StudentsPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {students.map((s) => (
               <Card key={String(s.id)} className="flex items-start gap-3 p-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-lg font-bold text-white">{initial(s)}</div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-lg font-bold text-white">{initial(s)}</div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{nameOf(s)}</p>
-                  <p className="text-sm text-slate-500">{String(s.masked_phone || s.phone || "—")}</p>
-                  <p className="text-xs text-slate-500">Joined: {formatDate(String(s.signup_date || s.created_at || ""))}</p>
-                  <Link href={`/dashboard/students/${s.id}`} className="mt-2 inline-block text-sm font-medium text-indigo-600 hover:underline">View →</Link>
+                  <p className="text-sm text-stone-500">{String(s.masked_phone || s.phone || "—")}</p>
+                  <p className="text-xs text-stone-500">Joined: {formatDate(String(s.signup_date || s.created_at || ""))}</p>
+                  <Link href={`/dashboard/students/${s.id}`} className="mt-2 inline-block text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">View →</Link>
                 </div>
               </Card>
             ))}

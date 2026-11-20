@@ -98,19 +98,19 @@ export default function TestSeriesDetailPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">Q{i + 1}. {q.question_text}</p>
-                  {q.chapter_test && <p className="mt-1 text-xs text-slate-500">Chapter / Test: {q.chapter_test}</p>}
+                  {q.chapter_test && <p className="mt-1 text-xs text-stone-500">Chapter / Test: {q.chapter_test}</p>}
                   <div className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
                     {(["A", "B", "C", "D"] as const).map((letter) => {
                       const val = q[`option_${letter.toLowerCase()}` as keyof TestQuestion];
                       const correct = String(q.correct_option || "").toUpperCase() === letter;
                       return (
-                        <p key={letter} className={correct ? "font-semibold text-emerald-600" : "text-slate-600 dark:text-slate-300"}>
+                        <p key={letter} className={correct ? "font-semibold text-emerald-600" : "text-stone-600 dark:text-stone-300"}>
                           {letter}. {String(val ?? "—")} {correct && "(Correct)"}
                         </p>
                       );
                     })}
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">Marks: {q.marks ?? 1} • Negative: {q.negative_marks ?? 0}</p>
+                  <p className="mt-2 text-xs text-stone-500">Marks: {q.marks ?? 1} • Negative: {q.negative_marks ?? 0}</p>
                 </div>
                 <Button variant="danger" className="px-3 py-1 text-xs" onClick={() => remove(q)} disabled={deleting === String(q.id)}>Delete</Button>
               </div>

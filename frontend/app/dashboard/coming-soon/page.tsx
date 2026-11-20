@@ -12,7 +12,7 @@ function ComingSoonInner() {
       <p className="text-4xl">🚧</p>
       <h1 className="mt-4 text-2xl font-bold">{feature}</h1>
       <p className="mt-2 text-lg font-medium">Coming soon in Phase 2</p>
-      <p className="mt-2 text-sm text-slate-500">
+      <p className="mt-2 text-sm text-stone-500">
         {feature} is not part of Phase 1. It will be built in Phase 2 — no placeholder data is shown here.
       </p>
       <div className="mt-6 flex justify-center gap-2">
@@ -25,7 +25,7 @@ function ComingSoonInner() {
 
 export default function ComingSoonPage() {
   return (
-    <Suspense fallback={<div className="py-10 text-center text-sm text-slate-500">Loading...</div>}>
+    <Suspense fallback={<div className="py-10 text-center text-sm text-stone-500">Loading...</div>}>
       <ComingSoonInner />
     </Suspense>
   );

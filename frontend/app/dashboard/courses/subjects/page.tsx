@@ -139,15 +139,15 @@ export default function SubjectsPage() {
       ) : subjects.length === 0 ? (
         <EmptyState title="No subjects yet" subtitle={`Create the first subject for "${selectedCourse?.title}".`} />
       ) : (
-        <Card className="divide-y divide-slate-200 dark:divide-slate-800">
+        <Card className="divide-y divide-stone-200 dark:divide-stone-800">
           {subjects.map((s) => (
             <div key={String(s.id)} className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
                 <p className="font-medium">
-                  {s.order !== undefined && s.order !== null && <span className="mr-2 text-slate-400">#{s.order}</span>}
+                  {s.order !== undefined && s.order !== null && <span className="mr-2 text-stone-400">#{s.order}</span>}
                   {s.name}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-stone-500">
                   ID: {String(s.id)}
                   {s.description ? ` • ${s.description}` : ""}
                 </p>

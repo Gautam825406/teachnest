@@ -230,19 +230,19 @@ export default function CourseVideosPage() {
       ) : videos.length === 0 ? (
         <EmptyState title="No videos yet" subtitle="Add the first video for this course." />
       ) : (
-        <Card className="divide-y divide-slate-200 dark:divide-slate-800">
+        <Card className="divide-y divide-stone-200 dark:divide-stone-800">
           {videos.map((v) => (
             <div key={String(v.id)} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="font-medium">
-                  {v.order !== undefined && v.order !== null && <span className="mr-2 text-slate-400">#{v.order}</span>}
+                  {v.order !== undefined && v.order !== null && <span className="mr-2 text-stone-400">#{v.order}</span>}
                   {v.title}
                   {v.is_free_preview && <Badge tone="green" >Free Preview</Badge>}
                 </p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-xs text-stone-500">
                   Duration: {formatDuration(v.duration_seconds)} • Subject: {subjectName(v.subject_id)} • Topic: {topicName(v.topic_id)}
                 </p>
-                <p className="truncate text-xs text-slate-500">{v.video_url}</p>
+                <p className="truncate text-xs text-stone-500">{v.video_url}</p>
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button variant="secondary" onClick={() => openEdit(v)}>Edit</Button>
@@ -288,7 +288,7 @@ export default function CourseVideosPage() {
             </Field>
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isFreePreview} onChange={(e) => setIsFreePreview(e.target.checked)} className="h-4 w-4 accent-indigo-600" />
+            <input type="checkbox" checked={isFreePreview} onChange={(e) => setIsFreePreview(e.target.checked)} className="h-4 w-4 accent-brand-700" />
             Free preview (students can watch this video without enrolling)
           </label>
           <ErrorBox message={formError} />

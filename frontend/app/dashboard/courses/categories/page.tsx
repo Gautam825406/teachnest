@@ -93,13 +93,13 @@ function CategoriesPageContent() {
         </form>
       </Card>
       {loading ? <Loading /> : (
-        <Card className="divide-y divide-slate-200 dark:divide-slate-800">
-          {list.length === 0 && <p className="p-4 text-sm text-slate-500">No {tab === "category" ? "categories" : "subcategories"} yet.</p>}
+        <Card className="divide-y divide-stone-200 dark:divide-stone-800">
+          {list.length === 0 && <p className="p-4 text-sm text-stone-500">No {tab === "category" ? "categories" : "subcategories"} yet.</p>}
           {list.map((item) => (
             <div key={String(item.id)} className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
                 <p className="font-medium">{item.name}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-stone-500">
                   ID: {String(item.id)}
                   {tab === "subcategory" && ` • Category: ${categories.find((c) => String(c.id) === String((item as Subcategory).category_id))?.name || (item as Subcategory).category_id}`}
                 </p>

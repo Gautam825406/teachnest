@@ -108,18 +108,18 @@ export default function TeachersPage() {
           {teachers.map((t) => (
             <Card key={String(t.id)} className="p-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-lg font-bold text-white">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-lg font-bold text-white">
                   {t.photo_url ? "📷" : t.name.trim().charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-bold">{t.name}</p>
-                  <p className="text-sm text-slate-500">{t.subject || "—"}</p>
+                  <p className="text-sm text-stone-500">{t.subject || "—"}</p>
                   {t.is_active !== false && <Badge tone="green" >Active Instructor</Badge>}
                 </div>
               </div>
-              {t.tagline && <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{t.tagline}</p>}
-              <p className="mt-2 text-xs text-slate-500">{t.email || ""} {t.phone ? `• ${t.phone}` : ""}</p>
-              <p className="text-xs text-slate-500">Experience: {t.experience_years ?? 0} years • Weight: {t.display_weight ?? 0}</p>
+              {t.tagline && <p className="mt-3 text-sm text-stone-600 dark:text-stone-300">{t.tagline}</p>}
+              <p className="mt-2 text-xs text-stone-500">{t.email || ""} {t.phone ? `• ${t.phone}` : ""}</p>
+              <p className="text-xs text-stone-500">Experience: {t.experience_years ?? 0} years • Weight: {t.display_weight ?? 0}</p>
               <div className="mt-3 flex gap-2">
                 <Button variant="secondary" onClick={() => openEdit(t)}>Edit</Button>
                 <Button variant="danger" onClick={() => remove(t)}>Delete</Button>
@@ -142,11 +142,11 @@ export default function TeachersPage() {
             <div className="sm:col-span-2"><Field label="Inspirational Quote"><Input value={form.quote} onChange={(e) => set("quote", e.target.value)} /></Field></div>
             <div className="sm:col-span-2">
               <Field label="Associated Course Categories">
-                <div className="space-y-1 rounded-lg border border-slate-300 p-3 dark:border-slate-700">
-                  {categories.length === 0 && <p className="text-sm text-slate-500">No categories yet.</p>}
+                <div className="space-y-1 rounded-lg border border-stone-300 p-3 dark:border-stone-700">
+                  {categories.length === 0 && <p className="text-sm text-stone-500">No categories yet.</p>}
                   {categories.map((c) => (
                     <label key={String(c.id)} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={form.categories.includes(String(c.id))} onChange={() => set("categories", form.categories.includes(String(c.id)) ? form.categories.filter((x) => x !== String(c.id)) : [...form.categories, String(c.id)])} className="h-4 w-4 accent-indigo-600" />
+                      <input type="checkbox" checked={form.categories.includes(String(c.id))} onChange={() => set("categories", form.categories.includes(String(c.id)) ? form.categories.filter((x) => x !== String(c.id)) : [...form.categories, String(c.id)])} className="h-4 w-4 accent-brand-700" />
                       {c.name}
                     </label>
                   ))}
@@ -157,8 +157,8 @@ export default function TeachersPage() {
             <div className="sm:col-span-2">
               <Field label="Profile Photo" hint="JPG, PNG or WEBP, max 2 MB. Square avatar recommended.">
                 <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handlePhoto(f); }} />
-                {uploadingPhoto && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
-                {form.photo_url && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {form.photo_url}</p>}
+                {uploadingPhoto && <p className="mt-1 text-xs text-stone-500">Uploading...</p>}
+                {form.photo_url && <p className="mt-1 break-all text-xs text-stone-500">Uploaded: {form.photo_url}</p>}
               </Field>
             </div>
           </div>

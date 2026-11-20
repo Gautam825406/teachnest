@@ -151,12 +151,12 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
   const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
   return (
-    <form onSubmit={save} className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <div className="space-y-6">
+    <form onSubmit={save} className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="space-y-5">
         {/* 1. Basic Course Info */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-semibold">1. Basic Course Info</h2>
-          <p className="mb-4 text-sm text-slate-500">Kindly verify all details before submitting.</p>
+        <section className="rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900">
+          <h2 className="text-sm font-semibold tracking-tight">1. Basic Course Info</h2>
+          <p className="mb-4 text-xs text-stone-500">Kindly verify all details before submitting.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2"><Field label="Course Title" required><Input value={v.title} onChange={(e) => set("title", e.target.value)} required placeholder="e.g. Mathematics Class 12" /></Field></div>
             <Field label="M.R.P in rupees" required><Input type="number" min={0} value={v.mrp} onChange={(e) => set("mrp", e.target.value)} required placeholder="e.g. 1999" /></Field>
@@ -175,8 +175,8 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
         </section>
 
         {/* 2. Meta Details */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-semibold">2. Course Meta Details</h2>
+        <section className="rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900">
+          <h2 className="text-sm font-semibold tracking-tight">2. Course Meta Details</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <Field label="Course Category">
@@ -203,8 +203,8 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
               </div>
             </div>
             <Field label="Test Series">
-              <div className="max-h-32 overflow-y-auto rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-700">
-                <p className="text-xs text-slate-500">Select test series to include in this course.</p>
+              <div className="max-h-32 overflow-y-auto rounded-lg border border-stone-300 p-2 text-sm dark:border-stone-700">
+                <p className="text-xs text-stone-500">Select test series to include in this course.</p>
                 <Input className="mt-2" value={v.test_series_ids.join(",")} onChange={(e) => set("test_series_ids", e.target.value.split(",").map((x) => x.trim()).filter(Boolean))} placeholder="Comma-separated test series IDs" />
               </div>
             </Field>
@@ -216,20 +216,20 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
             </Field>
             <Field label="Thumbnail" hint="JPEG, JPG or PNG. Recommended 1280 x 720.">
               <Input type="file" accept="image/jpeg,image/jpg,image/png" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleUpload("thumbnail_url", f); }} />
-              {uploading === "thumbnail_url" && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
-              {v.thumbnail_url && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {v.thumbnail_url}</p>}
+              {uploading === "thumbnail_url" && <p className="mt-1 text-xs text-stone-500">Uploading...</p>}
+              {v.thumbnail_url && <p className="mt-1 break-all text-xs text-stone-500">Uploaded: {v.thumbnail_url}</p>}
             </Field>
             <Field label="Syllabus PDF" hint="Upload the course syllabus as a PDF.">
               <Input type="file" accept="application/pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleUpload("syllabus_url", f); }} />
-              {uploading === "syllabus_url" && <p className="mt-1 text-xs text-slate-500">Uploading...</p>}
-              {v.syllabus_url && <p className="mt-1 break-all text-xs text-slate-500">Uploaded: {v.syllabus_url}</p>}
+              {uploading === "syllabus_url" && <p className="mt-1 text-xs text-stone-500">Uploading...</p>}
+              {v.syllabus_url && <p className="mt-1 break-all text-xs text-stone-500">Uploaded: {v.syllabus_url}</p>}
             </Field>
           </div>
         </section>
 
         {/* 3. Social Details */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-semibold">3. Course Social Details</h2>
+        <section className="rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900">
+          <h2 className="text-sm font-semibold tracking-tight">3. Course Social Details</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <Field label="Paid Telegram"><Input value={v.telegram_paid} onChange={(e) => set("telegram_paid", e.target.value)} placeholder="Paid Telegram link" /></Field>
             <Field label="Free Telegram"><Input value={v.telegram_free} onChange={(e) => set("telegram_free", e.target.value)} placeholder="Free Telegram link" /></Field>
@@ -238,8 +238,8 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
         </section>
 
         {/* 4. Advance Details */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-semibold">4. Course Advance Details</h2>
+        <section className="rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900">
+          <h2 className="text-sm font-semibold tracking-tight">4. Course Advance Details</h2>
           <div className="mt-4 space-y-3">
             {([
               ["show_in_app", "Show in App & Website"],
@@ -248,7 +248,7 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
               ["block_payment", "Block Payment"],
             ] as const).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={v[key]} onChange={(e) => set(key, e.target.checked)} className="h-4 w-4 accent-indigo-600" /> {label}
+                <input type="checkbox" checked={v[key]} onChange={(e) => set(key, e.target.checked)} className="h-4 w-4 accent-brand-700" /> {label}
               </label>
             ))}
             <Field label="Max Course Validity"><Input type="date" value={v.max_validity} onChange={(e) => set("max_validity", e.target.value)} /></Field>
@@ -256,17 +256,17 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
         </section>
 
         {/* 5. Teachers */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-semibold">5. Course Teachers</h2>
+        <section className="rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900">
+          <h2 className="text-sm font-semibold tracking-tight">5. Course Teachers</h2>
           <div className="mt-4 space-y-2">
-            {teachers.length === 0 && <p className="text-sm text-slate-500">No teachers yet. Add teachers from the Teachers page first.</p>}
+            {teachers.length === 0 && <p className="text-sm text-stone-500">No teachers yet. Add teachers from the Teachers page first.</p>}
             {teachers.map((t) => (
               <label key={String(t.id)} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={v.teacher_ids.includes(String(t.id))}
                   onChange={() => set("teacher_ids", toggle(v.teacher_ids, String(t.id)))}
-                  className="h-4 w-4 accent-indigo-600"
+                  className="h-4 w-4 accent-brand-700"
                 />
                 {t.name} {t.subject ? `— ${t.subject}` : ""}
               </label>
@@ -280,17 +280,17 @@ export default function CourseForm({ initial, courseId }: { initial: CourseFormV
 
       {/* Live preview */}
       <aside className="lg:sticky lg:top-20 lg:self-start">
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex h-40 items-center justify-center bg-gradient-to-br from-indigo-500 to-slate-800 text-sm font-medium text-white">
+        <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow dark:border-stone-800 dark:bg-stone-900">
+          <div className="flex h-40 items-center justify-center bg-brand-700 text-sm font-medium text-white">
             {v.thumbnail_url ? v.thumbnail_url : "Course Thumbnail"}
           </div>
           <div className="p-4">
-            <p className="text-sm text-slate-500">Live Preview</p>
+            <p className="text-sm text-stone-500">Live Preview</p>
             <h3 className="mt-1 font-bold">{v.title || "Course Title"}</h3>
-            <p className="mt-1 text-sm text-slate-500">Validity: {v.validity_days ? `${v.validity_days} Days` : "– Days"}</p>
+            <p className="mt-1 text-sm text-stone-500">Validity: {v.validity_days ? `${v.validity_days} Days` : "– Days"}</p>
             <p className="mt-2">
               <span className="text-lg font-bold">Rs.{price || 0}</span>{" "}
-              {mrp > price && <span className="text-sm text-slate-400 line-through">Rs.{mrp}</span>}
+              {mrp > price && <span className="text-sm text-stone-400 line-through">Rs.{mrp}</span>}
             </p>
             <p className="mt-1 text-sm font-medium text-emerald-600">Discount of {discount}%</p>
             <Button type="button" className="mt-3 w-full" variant="secondary">Buy Now</Button>

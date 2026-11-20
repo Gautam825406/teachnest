@@ -171,15 +171,15 @@ export default function TopicsPage() {
       ) : topics.length === 0 ? (
         <EmptyState title="No topics yet" subtitle={`Create the first topic for "${selectedSubject?.name}".`} />
       ) : (
-        <Card className="divide-y divide-slate-200 dark:divide-slate-800">
+        <Card className="divide-y divide-stone-200 dark:divide-stone-800">
           {topics.map((t) => (
             <div key={String(t.id)} className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
                 <p className="font-medium">
-                  {t.order !== undefined && t.order !== null && <span className="mr-2 text-slate-400">#{t.order}</span>}
+                  {t.order !== undefined && t.order !== null && <span className="mr-2 text-stone-400">#{t.order}</span>}
                   {t.name}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-stone-500">
                   ID: {String(t.id)}
                   {t.description ? ` • ${t.description}` : ""}
                 </p>
