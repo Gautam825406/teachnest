@@ -101,7 +101,7 @@ function Wordmark() {
   );
 }
 
-/** CSS-only preview of the real admin panel — structure only, no fake numbers. */
+/** CSS-only preview of the real admin panel — labelled sample numbers, not real data. */
 function DashboardMock() {
   const courses = [
     { title: "Physics — Class 11", meta: "12 subjects • 48 videos" },
@@ -133,11 +133,14 @@ function DashboardMock() {
           <p className="text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-100">Good morning, Demo Academy</p>
           <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Here is what is happening at your institute today.</p>
           <div className="mt-4 grid grid-cols-3 gap-3">
-            {["Total Students", "Total Courses", "Total Orders"].map((label) => (
-              <div key={label} className="rounded-[10px] border border-stone-200 p-3 dark:border-stone-800">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">{label}</p>
-                <div className="mt-2 h-4 w-16 rounded bg-stone-200 dark:bg-stone-800" aria-hidden />
-                <div className="mt-1.5 h-2.5 w-10 rounded bg-stone-100 dark:bg-stone-800" aria-hidden />
+            {[
+              { label: "Total Students", value: "128" },
+              { label: "Total Courses", value: "12" },
+              { label: "Total Orders", value: "45" },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-[10px] border border-stone-200 p-3 dark:border-stone-800">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">{stat.label}</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-stone-900 dark:text-stone-100">{stat.value}</p>
               </div>
             ))}
           </div>
@@ -271,6 +274,9 @@ export default function LandingPage() {
             <DashboardMock />
             <p className="mt-3 text-center text-xs text-stone-500 dark:text-stone-400">
               A preview of the TeachNest admin panel — the same panel your staff will use every day.
+            </p>
+            <p className="mt-1 text-center text-xs text-stone-500 dark:text-stone-400">
+              Sample preview — your dashboard will show your institute&apos;s real numbers.
             </p>
           </div>
         </section>
@@ -535,10 +541,10 @@ export default function LandingPage() {
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Link href="/signup">
-                <Button className="h-11 bg-white px-5 text-[15px] text-brand-800 hover:bg-brand-50">Get started free</Button>
+                <Button variant="inverse" className="h-11 px-5 text-[15px]">Get started free</Button>
               </Link>
               <Link href="/login">
-                <Button variant="ghost" className="h-11 px-5 text-[15px] text-white hover:bg-brand-700">Log in</Button>
+                <Button variant="outlineLight" className="h-11 px-5 text-[15px]">Log in</Button>
               </Link>
             </div>
           </div>

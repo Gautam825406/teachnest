@@ -26,12 +26,16 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   );
 }
 
-export function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
+export function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost" | "inverse" | "outlineLight" }) {
   const { variant = "primary", className = "", ...rest } = props;
   const styles =
     variant === "primary"
       ? "bg-brand-700 text-white hover:bg-brand-800"
-      : variant === "danger"
+      : variant === "inverse"
+        ? "bg-white text-brand-800 hover:bg-brand-50"
+        : variant === "outlineLight"
+          ? "border border-white/50 bg-transparent text-white hover:bg-white/10"
+          : variant === "danger"
         ? "bg-red-700 text-white hover:bg-red-800"
         : variant === "ghost"
           ? "bg-transparent text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
