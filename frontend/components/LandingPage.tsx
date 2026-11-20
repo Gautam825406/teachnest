@@ -21,7 +21,14 @@ import {
   X,
 } from "lucide-react";
 import { Button, ThemeToggle } from "@/components/ui";
+import { CountUp, Reveal, useInView } from "@/components/motion";
 import { getToken } from "@/lib/api";
+
+/** Shared hover micro-interaction for landing-page buttons. */
+const BTN_HOVER = "duration-300 ease-out hover:scale-[1.02] hover:shadow-md active:scale-[0.98]";
+/** Shared hover lift for landing-page cards. */
+const CARD_HOVER =
+  "transition duration-300 ease-out hover:-translate-y-1 hover:shadow-md hover:border-stone-300 dark:hover:border-stone-600";
 
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
@@ -103,13 +110,19 @@ function Wordmark() {
 
 /** CSS-only preview of the real admin panel — labelled sample numbers, not real data. */
 function DashboardMock() {
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const stats = [
+    { label: "Total Students", value: 128 },
+    { label: "Total Courses", value: 12 },
+    { label: "Total Orders", value: 45 },
+  ];
   const courses = [
     { title: "Physics — Class 11", meta: "12 subjects • 48 videos" },
     { title: "Chemistry — Class 12", meta: "10 subjects • 36 videos" },
     { title: "Mathematics — Class 10", meta: "8 subjects • 30 videos" },
   ];
   return (
-    <div className="overflow-hidden rounded-[10px] border border-stone-200 bg-white text-left shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <div ref={ref} className="overflow-hidden rounded-[10px] border border-stone-200 bg-white text-left shadow-sm dark:border-stone-800 dark:bg-stone-900">
       <div className="flex items-center gap-2 border-b border-stone-200 px-4 py-3 dark:border-stone-800">
         <span className="h-2.5 w-2.5 rounded-full bg-stone-300 dark:bg-stone-700" aria-hidden />
         <span className="h-2.5 w-2.5 rounded-full bg-stone-300 dark:bg-stone-700" aria-hidden />
@@ -133,18 +146,19 @@ function DashboardMock() {
           <p className="text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-100">Good morning, Demo Academy</p>
           <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Here is what is happening at your institute today.</p>
           <div className="mt-4 grid grid-cols-3 gap-3">
-            {[
-              { label: "Total Students", value: "128" },
-              { label: "Total Courses", value: "12" },
-              { label: "Total Orders", value: "45" },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-[10px] border border-stone-200 p-3 dark:border-stone-800">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">{stat.label}</p>
-                <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-stone-900 dark:text-stone-100">{stat.value}</p>
-              </div>
+            {stats.map((stat, i) => (
+              <Reveal key={stat.label} delay={i * 60} className="h-full">
+                <div className="h-full rounded-[10px] border border-stone-200 p-3 dark:border-stone-800">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">{stat.label}</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-stone-900 dark:text-stone-100">
+                    <CountUp value={stat.value} start={inView} />
+                  </p>
+                </div>
+              </Reveal>
             ))}
           </div>
-          <div className="mt-4 rounded-[10px] border border-stone-200 dark:border-stone-800">
+          <Reveal delay={180}>
+            <div className="mt-4 rounded-[10px] border border-stone-200 dark:border-stone-800">
             {courses.map((c, i) => (
               <div
                 key={c.title}
@@ -161,6 +175,7 @@ function DashboardMock() {
               </div>
             ))}
           </div>
+          </Reveal>
         </div>
       </div>
     </div>
@@ -171,20 +186,28 @@ export default function LandingPage() {
   const [signedIn, setSignedIn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     setSignedIn(Boolean(getToken()));
   }, []);
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
       {/* Top nav */}
-      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
+      <header className={`sticky top-0 z-40 border-b border-stone-200 bg-white transition-shadow duration-300 dark:border-stone-800 dark:bg-stone-900 ${scrolled ? "shadow-sm" : ""}`}>
         <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-4 px-4 sm:px-6">
           <Wordmark />
           <nav className="ml-8 hidden items-center gap-6 md:flex" aria-label="Primary">
             {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href} className="text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
+              <a key={l.href} href={l.href} className="text-sm text-stone-600 transition-colors duration-300 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
                 {l.label}
               </a>
             ))}
@@ -193,15 +216,15 @@ export default function LandingPage() {
             <ThemeToggle />
             {signedIn ? (
               <Link href="/dashboard">
-                <Button>Go to dashboard</Button>
+                <Button className={BTN_HOVER}>Go to dashboard</Button>
               </Link>
             ) : (
               <>
                 <Link href="/login" className="hidden sm:block">
-                  <Button variant="secondary">Log in</Button>
+                  <Button variant="secondary" className={BTN_HOVER}>Log in</Button>
                 </Link>
                 <Link href="/signup">
-                  <Button>Get started</Button>
+                  <Button className={BTN_HOVER}>Get started</Button>
                 </Link>
               </>
             )}
@@ -242,106 +265,127 @@ export default function LandingPage() {
         {/* Hero */}
         <section className="mx-auto max-w-[1200px] px-4 pb-16 pt-16 sm:px-6 sm:pt-20">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-stone-600 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">
-              <Sparkles size={13} className="text-brand-700 dark:text-brand-300" aria-hidden />
-              Built for coaching institutes in India
-            </p>
-            <h1 className="mt-5 text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
-              Run your entire coaching institute from one place
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-stone-600 dark:text-stone-400 sm:text-lg">
-              TeachNest gives you an admin panel, test series, live classes and a white-label
-              student app — with payments through Cashfree — so you can teach, test and get
-              paid without juggling five different tools.
-            </p>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/signup">
-                <Button className="h-11 px-5 text-[15px]">
-                  Start free trial <ArrowRight size={16} aria-hidden />
-                </Button>
-              </Link>
-              <Link href="#how-it-works">
-                <Button variant="secondary" className="h-11 px-5 text-[15px]">
-                  See how it works
-                </Button>
-              </Link>
+            <Reveal>
+              <p className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-stone-600 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">
+                <Sparkles size={13} className="text-brand-700 dark:text-brand-300" aria-hidden />
+                Built for coaching institutes in India
+              </p>
+            </Reveal>
+            <Reveal delay={60}>
+              <h1 className="mt-5 text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
+                Run your entire coaching institute from one place
+              </h1>
+            </Reveal>
+            <Reveal delay={120}>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-stone-600 dark:text-stone-400 sm:text-lg">
+                TeachNest gives you an admin panel, test series, live classes and a white-label
+                student app — with payments through Cashfree — so you can teach, test and get
+                paid without juggling five different tools.
+              </p>
+            </Reveal>
+            <Reveal delay={180}>
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+                <Link href="/signup">
+                  <Button className={`h-11 px-5 text-[15px] ${BTN_HOVER}`}>
+                    Start free trial <ArrowRight size={16} aria-hidden />
+                  </Button>
+                </Link>
+                <Link href="#how-it-works">
+                  <Button variant="secondary" className={`h-11 px-5 text-[15px] ${BTN_HOVER}`}>
+                    See how it works
+                  </Button>
+                </Link>
+              </div>
+            </Reveal>
+            <Reveal delay={240}>
+              <p className="mt-4 text-[13px] text-stone-500 dark:text-stone-400">
+                No credit card required &bull; Set up in minutes &bull; Free to start
+              </p>
+            </Reveal>
+          </div>
+          <Reveal delay={120}>
+            <div className="mx-auto mt-12 max-w-4xl">
+              <DashboardMock />
+              <p className="mt-3 text-center text-xs text-stone-500 dark:text-stone-400">
+                A preview of the TeachNest admin panel — the same panel your staff will use every day.
+              </p>
+              <p className="mt-1 text-center text-xs text-stone-500 dark:text-stone-400">
+                Sample preview — your dashboard will show your institute&apos;s real numbers.
+              </p>
             </div>
-            <p className="mt-4 text-[13px] text-stone-500 dark:text-stone-400">
-              No credit card required &bull; Set up in minutes &bull; Free to start
-            </p>
-          </div>
-          <div className="mx-auto mt-12 max-w-4xl">
-            <DashboardMock />
-            <p className="mt-3 text-center text-xs text-stone-500 dark:text-stone-400">
-              A preview of the TeachNest admin panel — the same panel your staff will use every day.
-            </p>
-            <p className="mt-1 text-center text-xs text-stone-500 dark:text-stone-400">
-              Sample preview — your dashboard will show your institute&apos;s real numbers.
-            </p>
-          </div>
+          </Reveal>
         </section>
 
         {/* Features */}
         <section id="features" className="border-y border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
-          <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">Features</p>
-            <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
-              Everything an institute needs, in one system
-            </h2>
-            <p className="mt-2 max-w-2xl text-[15px] text-stone-600 dark:text-stone-400">
-              From the first course you publish to the last fee you collect, TeachNest keeps
-              content, students and payments connected.
-            </p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map((f) => (
-                <div key={f.title} className="rounded-[10px] border border-stone-200 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400" aria-hidden>
-                    <f.icon size={18} />
-                  </span>
-                  <h3 className="mt-4 text-base font-semibold tracking-tight">{f.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-stone-600 dark:text-stone-400">{f.text}</p>
-                </div>
-              ))}
+          <Reveal>
+            <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">Features</p>
+              <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
+                Everything an institute needs, in one system
+              </h2>
+              <p className="mt-2 max-w-2xl text-[15px] text-stone-600 dark:text-stone-400">
+                From the first course you publish to the last fee you collect, TeachNest keeps
+                content, students and payments connected.
+              </p>
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {FEATURES.map((f, i) => (
+                  <Reveal key={f.title} delay={(i % 3) * 60} className="h-full">
+                    <div className={`h-full rounded-[10px] border border-stone-200 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900 ${CARD_HOVER}`}>
+                      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400" aria-hidden>
+                        <f.icon size={18} />
+                      </span>
+                      <h3 className="mt-4 text-base font-semibold tracking-tight">{f.title}</h3>
+                      <p className="mt-1.5 text-sm leading-relaxed text-stone-600 dark:text-stone-400">{f.text}</p>
+                    </div>
+                  </Reveal>
+                ))}
+              </div>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* How it works */}
         <section id="how-it-works" className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6">
-          <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">How it works</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Live in three steps</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {[
-              {
-                n: "1",
-                title: "Create your institute",
-                text: "Sign up, add your institute details and invite your teachers. Your admin panel is ready in minutes — no setup fee, no installation.",
-              },
-              {
-                n: "2",
-                title: "Add courses, tests & teachers",
-                text: "Upload video lectures, organise them into subjects and topics, build test series, and generate question papers with AI.",
-              },
-              {
-                n: "3",
-                title: "Students learn, you get paid",
-                text: "Students use your branded app to buy courses, watch lectures and take tests. Payments arrive through Cashfree, tracked order by order.",
-              },
-            ].map((s) => (
-              <div key={s.n} className="rounded-[10px] border border-stone-200 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700 text-sm font-semibold text-white" aria-hidden>
-                  {s.n}
-                </span>
-                <h3 className="mt-4 text-base font-semibold tracking-tight">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-stone-600 dark:text-stone-400">{s.text}</p>
-              </div>
-            ))}
-          </div>
+          <Reveal>
+            <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">How it works</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Live in three steps</h2>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  n: "1",
+                  title: "Create your institute",
+                  text: "Sign up, add your institute details and invite your teachers. Your admin panel is ready in minutes — no setup fee, no installation.",
+                },
+                {
+                  n: "2",
+                  title: "Add courses, tests & teachers",
+                  text: "Upload video lectures, organise them into subjects and topics, build test series, and generate question papers with AI.",
+                },
+                {
+                  n: "3",
+                  title: "Students learn, you get paid",
+                  text: "Students use your branded app to buy courses, watch lectures and take tests. Payments arrive through Cashfree, tracked order by order.",
+                },
+              ].map((s, i) => (
+                <Reveal key={s.n} delay={i * 60} className="h-full">
+                  <div className={`h-full rounded-[10px] border border-stone-200 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900 ${CARD_HOVER}`}>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700 text-sm font-semibold text-white" aria-hidden>
+                      {s.n}
+                    </span>
+                    <h3 className="mt-4 text-base font-semibold tracking-tight">{s.title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-stone-600 dark:text-stone-400">{s.text}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
         </section>
 
         {/* Product sections */}
         <section className="border-y border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
-          <div className="mx-auto max-w-[1200px] space-y-16 px-4 py-16 sm:px-6">
+          <Reveal>
+            <div className="mx-auto max-w-[1200px] space-y-16 px-4 py-16 sm:px-6">
             <div className="grid items-center gap-8 md:grid-cols-2">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">Admin panel &amp; student app</p>
@@ -439,19 +483,22 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+          </Reveal>
         </section>
 
         {/* Pricing */}
         <section id="pricing" className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6">
-          <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">Pricing</p>
+          <Reveal>
+            <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">Pricing</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Simple plans that grow with your institute</h2>
           <p className="mt-2 max-w-2xl text-[15px] text-stone-600 dark:text-stone-400">
             Start free, then move up when your institute grows. Paid plans include a 14-day
             free trial and no setup fee.
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <div className="rounded-[10px] border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-              <h3 className="text-base font-semibold tracking-tight">Starter</h3>
+            <Reveal delay={0} className="h-full">
+              <div className={`h-full rounded-[10px] border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900 ${CARD_HOVER}`}>
+                <h3 className="text-base font-semibold tracking-tight">Starter</h3>
               <p className="mt-1 text-2xl font-semibold tracking-tight">Free to start</p>
               <p className="mt-1 text-[13px] text-stone-500 dark:text-stone-400">For institutes getting started online.</p>
               <ul className="mt-5 space-y-2 text-sm text-stone-700 dark:text-stone-300">
@@ -463,10 +510,12 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link href="/signup" className="mt-6 block">
-                <Button variant="secondary" className="w-full">Start free</Button>
+                <Button variant="secondary" className={`w-full ${BTN_HOVER}`}>Start free</Button>
               </Link>
-            </div>
-            <div className="relative rounded-[10px] border-2 border-brand-700 bg-white p-6 shadow-sm dark:bg-stone-900">
+              </div>
+            </Reveal>
+            <Reveal delay={60} className="h-full">
+              <div className="relative h-full rounded-[10px] border-2 border-brand-700 bg-white p-6 shadow-sm transition duration-300 ease-out hover:-translate-y-1 hover:shadow-md dark:bg-stone-900">
               <span className="absolute -top-3 left-6 rounded-md bg-brand-700 px-2 py-0.5 text-[11px] font-medium text-white">Most popular</span>
               <h3 className="text-base font-semibold tracking-tight">Growth</h3>
               <p className="mt-1 text-2xl font-semibold tracking-tight">Custom</p>
@@ -480,11 +529,13 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link href="/signup" className="mt-6 block">
-                <Button className="w-full">Contact sales</Button>
+                <Button className={`w-full ${BTN_HOVER}`}>Contact sales</Button>
               </Link>
-            </div>
-            <div className="rounded-[10px] border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-              <h3 className="text-base font-semibold tracking-tight">Scale</h3>
+              </div>
+            </Reveal>
+            <Reveal delay={120} className="h-full">
+              <div className={`h-full rounded-[10px] border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900 ${CARD_HOVER}`}>
+                <h3 className="text-base font-semibold tracking-tight">Scale</h3>
               <p className="mt-1 text-2xl font-semibold tracking-tight">Custom</p>
               <p className="mt-1 text-[13px] text-stone-500 dark:text-stone-400">For institutes that want their own brand everywhere.</p>
               <ul className="mt-5 space-y-2 text-sm text-stone-700 dark:text-stone-300">
@@ -496,64 +547,77 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link href="/signup" className="mt-6 block">
-                <Button variant="secondary" className="w-full">Contact sales</Button>
+                <Button variant="secondary" className={`w-full ${BTN_HOVER}`}>Contact sales</Button>
               </Link>
-            </div>
+              </div>
+            </Reveal>
           </div>
           <p className="mt-4 text-xs text-stone-500 dark:text-stone-400">
             Plan limits shown above are part of the plan design and may change as TeachNest evolves. Custom pricing is confirmed with you before billing starts.
           </p>
+          </Reveal>
         </section>
 
         {/* FAQ */}
         <section id="faq" className="border-y border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
-          <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">FAQ</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Questions, answered</h2>
-            <div className="mt-8 space-y-3">
-              {FAQS.map((f, i) => (
-                <div key={f.q} className="rounded-[10px] border border-stone-200 dark:border-stone-800">
-                  <button
-                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                    className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left text-[15px] font-medium"
-                    aria-expanded={openFaq === i}
-                  >
-                    {f.q}
-                    <ChevronDown size={17} className={`shrink-0 text-stone-500 transition-transform ${openFaq === i ? "rotate-180" : ""}`} aria-hidden />
-                  </button>
-                  {openFaq === i && (
-                    <p className="px-5 pb-5 text-sm leading-relaxed text-stone-600 dark:text-stone-400">{f.a}</p>
-                  )}
-                </div>
-              ))}
+          <Reveal>
+            <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">FAQ</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Questions, answered</h2>
+              <div className="mt-8 space-y-3">
+                {FAQS.map((f, i) => (
+                  <Reveal key={f.q} delay={(i % 3) * 60}>
+                    <div className="rounded-[10px] border border-stone-200 dark:border-stone-800">
+                      <button
+                        onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left text-[15px] font-medium"
+                        aria-expanded={openFaq === i}
+                      >
+                        {f.q}
+                        <ChevronDown size={17} className={`shrink-0 text-stone-500 transition-transform duration-300 ease-out ${openFaq === i ? "rotate-180" : ""}`} aria-hidden />
+                      </button>
+                      <div
+                        className={`grid transition-all duration-300 ease-out ${openFaq === i ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                      >
+                        <div className="overflow-hidden">
+                          <p className="px-5 pb-5 text-sm leading-relaxed text-stone-600 dark:text-stone-400">{f.a}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </Reveal>
+                ))}
+              </div>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* Final CTA */}
         <section className="bg-brand-800 dark:bg-brand-950">
-          <div className="mx-auto max-w-[1200px] px-4 py-16 text-center sm:px-6">
-            <h2 className="mx-auto max-w-2xl text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              Ready to run your institute on TeachNest?
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-[15px] text-brand-100">
-              Create your institute account today. No credit card required, no setup fee.
-            </p>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/signup">
-                <Button variant="inverse" className="h-11 px-5 text-[15px]">Get started free</Button>
-              </Link>
-              <Link href="/login">
-                <Button variant="outlineLight" className="h-11 px-5 text-[15px]">Log in</Button>
-              </Link>
+          <Reveal>
+            <div className="mx-auto max-w-[1200px] px-4 py-16 text-center sm:px-6">
+              <h2 className="mx-auto max-w-2xl text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                Ready to run your institute on TeachNest?
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-[15px] text-brand-100">
+                Create your institute account today. No credit card required, no setup fee.
+              </p>
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+                <Link href="/signup">
+                  <Button variant="inverse" className={`h-11 px-5 text-[15px] ${BTN_HOVER}`}>Get started free</Button>
+                </Link>
+                <Link href="/login">
+                  <Button variant="outlineLight" className={`h-11 px-5 text-[15px] ${BTN_HOVER}`}>Log in</Button>
+                </Link>
+              </div>
             </div>
-          </div>
+          </Reveal>
         </section>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
-        <div className="mx-auto max-w-[1200px] px-4 py-12 sm:px-6">
+        <Reveal>
+          <div className="mx-auto max-w-[1200px] px-4 py-12 sm:px-6">
           <div className="grid gap-10 md:grid-cols-5">
             <div className="md:col-span-2">
               <Wordmark />
@@ -613,6 +677,7 @@ export default function LandingPage() {
             <span>Learn. Practice. Achieve.</span>
           </div>
         </div>
+        </Reveal>
       </footer>
     </div>
   );

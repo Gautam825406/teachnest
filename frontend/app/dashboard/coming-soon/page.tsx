@@ -2,7 +2,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, Loading } from "@/components/ui";
 
 function ComingSoonInner() {
   const params = useSearchParams();
@@ -25,7 +25,7 @@ function ComingSoonInner() {
 
 export default function ComingSoonPage() {
   return (
-    <Suspense fallback={<div className="py-10 text-center text-sm text-stone-500">Loading...</div>}>
+    <Suspense fallback={<Loading label="Loading..." />}>
       <ComingSoonInner />
     </Suspense>
   );

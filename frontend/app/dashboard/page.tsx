@@ -15,6 +15,33 @@ import {
 } from "lucide-react";
 import { apiFetch, formatINR, getStoredUser, integrationsStatusApi, paymentsApi, toISODate, type DashboardStats, type IntegrationStatus, type PaymentOrder } from "@/lib/api";
 import { Badge, Button, Card, ErrorBox, Field, Input, Loading, Modal, Select } from "@/components/ui";
+import { CountUp, Reveal, useCountUp } from "@/components/motion";
+
+/** Split a formatted "Rs.1,234.50" value into its integer part + decimal suffix,
+ * so the integer can count up while the final display stays byte-identical. */
+function splitINR(n: number | null | undefined): { int: number; frac: string } {
+  const m = /^Rs\.([\d,]+)(\.\d+)?$/.exec(formatINR(n));
+  if (!m) return { int: 0, frac: "" };
+  return { int: Number(m[1].replace(/,/g, "")), frac: m[2] ?? "" };
+}
+
+/** ₹ value that counts 0 → value on mount, ending on the exact formatINR string. */
+function AnimatedINR({ value, start }: { value: number; start: boolean }) {
+  const { int, frac } = splitINR(value);
+  return (
+    <span className="tnum">
+      Rs.
+      <CountUp value={int} start={start} />
+      {frac}
+    </span>
+  );
+}
+
+/** Plain integer count that counts 0 → value on mount, ending on the exact String(value). */
+function AnimatedCount({ value, start }: { value: number; start: boolean }) {
+  const current = useCountUp(value, start);
+  return <span className="tnum">{String(current)}</span>;
+}
 
 const CAROUSEL = [
   {
@@ -51,6 +78,13 @@ export default function DashboardPage() {
   const [payOrder, setPayOrder] = useState<PaymentOrder | null>(null);
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [verifyResult, setVerifyResult] = useState<string | null>(null);
+  const [barsIn, setBarsIn] = useState(false);
+  // Animate the storage bar width from 0 once stats arrive (CSS transition).
+  useEffect(() => {
+    if (!stats) return;
+    const raf = requestAnimationFrame(() => setBarsIn(true));
+    return () => cancelAnimationFrame(raf);
+  }, [stats]);
 
   const load = useCallback(async (start: string, end: string) => {
     setLoading(true);
@@ -128,15 +162,15 @@ export default function DashboardPage() {
   const cashfreeConfigured = gwStatus?.cashfree?.configured === true;
   const cashfreeEnv = gwStatus?.cashfree?.env;
 
-  const cards: { label: string; value: string; sub?: string; icon: LucideIcon }[] = [
-    { label: "Today's Earnings", value: formatINR(stats?.todays_earnings), sub: "Online & Offline", icon: IndianRupee },
-    { label: "Recently Joined", value: String(stats?.recently_joined ?? 0), icon: UserPlus },
-    { label: "Total Earnings", value: formatINR(stats?.total_earnings), icon: TrendingUp },
-    { label: "Total Classes Taken", value: String(stats?.total_classes_taken ?? 0), icon: MonitorPlay },
-    { label: "Total Courses", value: String(stats?.total_courses ?? 0), icon: BookOpen },
-    { label: "Total Students", value: String(stats?.total_students ?? 0), icon: GraduationCap },
-    { label: "Total Teachers", value: String(stats?.total_teachers ?? 0), icon: Users },
-    { label: "Total Orders", value: String(stats?.total_orders ?? 0), icon: ShoppingCart },
+  const cards: { label: string; num: number; kind: "inr" | "plain"; sub?: string; icon: LucideIcon }[] = [
+    { label: "Today's Earnings", num: stats?.todays_earnings ?? 0, kind: "inr", sub: "Online & Offline", icon: IndianRupee },
+    { label: "Recently Joined", num: stats?.recently_joined ?? 0, kind: "plain", icon: UserPlus },
+    { label: "Total Earnings", num: stats?.total_earnings ?? 0, kind: "inr", icon: TrendingUp },
+    { label: "Total Classes Taken", num: stats?.total_classes_taken ?? 0, kind: "plain", icon: MonitorPlay },
+    { label: "Total Courses", num: stats?.total_courses ?? 0, kind: "plain", icon: BookOpen },
+    { label: "Total Students", num: stats?.total_students ?? 0, kind: "plain", icon: GraduationCap },
+    { label: "Total Teachers", num: stats?.total_teachers ?? 0, kind: "plain", icon: Users },
+    { label: "Total Orders", num: stats?.total_orders ?? 0, kind: "plain", icon: ShoppingCart },
   ];
 
   return (
@@ -156,10 +190,10 @@ export default function DashboardPage() {
           <h2 className="text-[15px] font-semibold tracking-tight text-stone-900 dark:text-stone-100">Welcome back, {user?.tenant_name || user?.username || "Institute"}</h2>
           <p className="mt-1 text-[13px] text-stone-500 dark:text-stone-400">Track your earnings, manage your courses activity and take control over your app.</p>
         </div>
-        <Card className="flex items-center gap-3 px-4 py-3">
+        <Card className="flex items-center gap-3 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">Wallet Balance</p>
-            <p className="mt-0.5 text-[20px] font-semibold tabular-nums leading-7 text-stone-900 dark:text-stone-100">{formatINR(stats?.wallet_balance)}</p>
+            <p className="mt-0.5 text-[20px] font-semibold tabular-nums leading-7 text-stone-900 dark:text-stone-100"><AnimatedINR value={stats?.wallet_balance ?? 0} start={!!stats} /></p>
           </div>
           <Button variant="secondary" className="px-3" title="Top up wallet via Cashfree" onClick={() => openPayModal("wallet")}>+</Button>
         </Card>
@@ -168,13 +202,15 @@ export default function DashboardPage() {
       {/* Updates & News carousel */}
       <Card className="relative mb-6 overflow-hidden p-6">
         <span aria-hidden className="absolute left-0 top-0 h-full w-[3px] bg-brand-700" />
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-200">UPDATES &amp; NEWS</p>
-        <h3 className="mt-2 text-lg font-semibold text-stone-900 dark:text-stone-100">{CAROUSEL[slide].title}</h3>
-        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{CAROUSEL[slide].body}</p>
-        <Link href={CAROUSEL[slide].link} className="mt-3 inline-block text-sm font-semibold text-brand-700 underline dark:text-brand-200">{CAROUSEL[slide].linkLabel}</Link>
+        <div key={slide} className="motion-fade-in">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-200">UPDATES &amp; NEWS</p>
+          <h3 className="mt-2 text-lg font-semibold text-stone-900 dark:text-stone-100">{CAROUSEL[slide].title}</h3>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{CAROUSEL[slide].body}</p>
+          <Link href={CAROUSEL[slide].link} className="mt-3 inline-block text-sm font-semibold text-brand-700 underline dark:text-brand-200">{CAROUSEL[slide].linkLabel}</Link>
+        </div>
         <div className="mt-4 flex gap-2">
           {CAROUSEL.map((_, i) => (
-            <button key={i} onClick={() => setSlide(i)} aria-label={`Show update ${i + 1}`} className={`h-1.5 w-1.5 rounded-full ${i === slide ? "bg-brand-700 dark:bg-brand-200" : "bg-stone-300 dark:bg-stone-700"}`} />
+            <button key={i} onClick={() => setSlide(i)} aria-label={`Show update ${i + 1}`} className={`h-1.5 w-1.5 rounded-full transition-colors duration-200 ${i === slide ? "bg-brand-700 dark:bg-brand-200" : "bg-stone-300 dark:bg-stone-700"}`} />
           ))}
         </div>
       </Card>
@@ -193,7 +229,7 @@ export default function DashboardPage() {
           <Button variant="secondary" onClick={() => setShowFilters((v) => !v)}>FILTERS</Button>
         </div>
         {showFilters && (
-          <div className="mt-4 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+          <div className="motion-fade-in mt-4 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
             <p className="mb-3 text-[13px] font-semibold text-stone-900 dark:text-stone-100">Analytics Filters</p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
@@ -218,35 +254,42 @@ export default function DashboardPage() {
       {loading && !stats ? (
         <Loading label="Loading dashboard statistics..." />
       ) : (
-        <>
+        <div className={`transition-opacity duration-300 ${loading ? "opacity-60" : "opacity-100"}`}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {cards.map((c) => {
+            {cards.map((c, i) => {
               const Icon = c.icon;
               return (
-                <Card key={c.label} className="relative p-4">
-                  <Icon size={16} className="absolute right-4 top-4 text-stone-400 dark:text-stone-500" />
-                  <p className="pr-6 text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">{c.label.toUpperCase()}</p>
-                  <p className="mt-2 text-[26px] font-semibold tabular-nums leading-8 text-stone-900 dark:text-stone-100">{c.value}</p>
-                  {c.sub && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{c.sub}</p>}
-                </Card>
+                <Reveal key={c.label} delay={Math.min(i * 50, 200)} className="h-full">
+                  <Card className="relative h-full p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+                    <Icon size={16} className="absolute right-4 top-4 text-stone-400 dark:text-stone-500" />
+                    <p className="pr-6 text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">{c.label.toUpperCase()}</p>
+                    <p className="mt-2 text-[26px] font-semibold tabular-nums leading-8 text-stone-900 dark:text-stone-100">
+                      {c.kind === "inr" ? <AnimatedINR value={c.num} start={!!stats} /> : <AnimatedCount value={c.num} start={!!stats} />}
+                    </p>
+                    {c.sub && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{c.sub}</p>}
+                  </Card>
+                </Reveal>
               );
             })}
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <Card className="p-4">
-              <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">VIDEO STORAGE</p>
-              <p className="mt-2 text-[26px] font-semibold tabular-nums leading-8 text-stone-900 dark:text-stone-100">{storageMb.toLocaleString("en-IN")}{" "}MB{" "}<span className="text-base font-medium text-stone-500 dark:text-stone-400">of{" "}{(limitGb).toFixed(2)}{" "}TB</span></p>
-              <p className="mt-1 text-[13px] text-stone-500 dark:text-stone-400">Plan: {stats?.storage_plan || "FREE"} — {storagePct.toFixed(1)}% used</p>
-              <div className="mt-3 h-2 w-full rounded-full bg-stone-200 dark:bg-stone-800">
-                <div className="h-2 rounded-full bg-brand-700" style={{ width: `${Math.max(storagePct, 1)}%` }} />
-              </div>
-              <div className="mt-4 flex gap-2">
-                <Link href="/dashboard/settings"><Button variant="secondary">Storage Plan</Button></Link>
-                <Button variant="secondary" onClick={() => openPayModal("storage")}>Buy Storage</Button>
-              </div>
-            </Card>
-            <Card className="p-4">
+            <Reveal delay={100} className="h-full">
+              <Card className="h-full p-4">
+                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">VIDEO STORAGE</p>
+                <p className="mt-2 text-[26px] font-semibold tabular-nums leading-8 text-stone-900 dark:text-stone-100"><CountUp value={storageMb} start={!!stats} />{" "}MB{" "}<span className="text-base font-medium text-stone-500 dark:text-stone-400">of{" "}{(limitGb).toFixed(2)}{" "}TB</span></p>
+                <p className="mt-1 text-[13px] text-stone-500 dark:text-stone-400">Plan: {stats?.storage_plan || "FREE"} — {storagePct.toFixed(1)}% used</p>
+                <div className="mt-3 h-2 w-full rounded-full bg-stone-200 dark:bg-stone-800">
+                  <div className="h-2 rounded-full bg-brand-700 transition-[width] duration-500 ease-out" style={{ width: barsIn ? `${Math.max(storagePct, 1)}%` : "0%" }} />
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Link href="/dashboard/settings"><Button variant="secondary">Storage Plan</Button></Link>
+                  <Button variant="secondary" onClick={() => openPayModal("storage")}>Buy Storage</Button>
+                </div>
+              </Card>
+            </Reveal>
+            <Reveal delay={150} className="h-full">
+              <Card className="h-full p-4">
               <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">PAYMENT GATEWAY</p>
               <p className="mt-2 text-[26px] font-semibold tabular-nums leading-8 text-stone-900 dark:text-stone-100">
                 Cashfree{" "}
@@ -272,9 +315,10 @@ export default function DashboardPage() {
               <div className="mt-3">
                 <Link href="/dashboard/integrations"><Button variant="secondary">View Integrations</Button></Link>
               </div>
-            </Card>
+              </Card>
+            </Reveal>
           </div>
-        </>
+        </div>
       )}
 
       <Modal open={payModal !== null} title={payModal === "wallet" ? "Wallet Top-up" : "Buy Storage"} onClose={() => setPayModal(null)}>

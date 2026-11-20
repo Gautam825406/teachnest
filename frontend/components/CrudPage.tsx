@@ -277,7 +277,7 @@ export default function CrudPage(props: CrudPageProps) {
             </thead>
             <tbody className="divide-y divide-stone-200 dark:divide-stone-800">
               {items.map((row) => (
-                <tr key={String(row.id)} className="hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                <tr key={String(row.id)} className="transition-colors hover:bg-stone-50 dark:hover:bg-stone-800/50">
                   {columns.map((c) => (
                     <td key={c.key} className={`max-w-64 truncate px-4 py-3 ${c.format === "inr" || c.format === "date" ? "text-right tabular-nums" : ""}`}>{displayValue(row, c)}</td>
                   ))}

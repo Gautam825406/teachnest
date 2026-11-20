@@ -17,11 +17,13 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   return (
     <button
       onClick={toggle}
-      className={`flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 ${className}`}
+      className={`flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-600 transition-colors duration-200 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 ${className}`}
       title="Toggle theme"
       aria-label="Toggle theme"
     >
-      {dark ? <Sun size={16} /> : <Moon size={16} />}
+      <span key={dark ? "sun" : "moon"} className="motion-icon-spin flex items-center justify-center">
+        {dark ? <Sun size={16} /> : <Moon size={16} />}
+      </span>
     </button>
   );
 }
@@ -49,7 +51,7 @@ export function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { 
 }
 
 const fieldBase =
-  "h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none placeholder:text-stone-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100";
+  "h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition duration-200 placeholder:text-stone-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${fieldBase} ${props.className || ""}`} />;
@@ -60,7 +62,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       {...props}
-      className={`h-10 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none placeholder:text-stone-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 ${props.className || ""}`}
+      className={`h-10 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none transition duration-200 placeholder:text-stone-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 ${props.className || ""}`}
     />
   );
 });
@@ -157,9 +159,13 @@ export function EmptyState({ title, subtitle, action }: { title: string; subtitl
 
 export function Loading({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-10 text-sm text-stone-500 dark:text-stone-400">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-brand-600 dark:border-stone-700 dark:border-t-brand-400" aria-hidden />
-      {label}
+    <div className="py-6" role="status" aria-label={label}>
+      <div className="space-y-3" aria-hidden>
+        <div className="motion-skeleton h-4 w-1/3 rounded" />
+        <div className="motion-skeleton h-24 w-full rounded-[10px]" />
+        <div className="motion-skeleton h-4 w-1/2 rounded" />
+      </div>
+      <p className="mt-4 text-center text-sm text-stone-500 dark:text-stone-400">{label}</p>
     </div>
   );
 }
@@ -176,9 +182,9 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="motion-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-stone-200 bg-white shadow-lg dark:border-stone-800 dark:bg-stone-900"
+        className="motion-pop-in max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-stone-200 bg-white shadow-lg dark:border-stone-800 dark:bg-stone-900"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -188,7 +194,7 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
           <h2 className="text-base font-semibold tracking-tight text-stone-900 dark:text-stone-100">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-stone-400 dark:hover:bg-stone-800"
+            className="rounded-lg p-1.5 text-stone-500 transition-colors duration-200 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-stone-400 dark:hover:bg-stone-800"
             aria-label="Close"
           >
             <X className="h-4 w-4" aria-hidden />

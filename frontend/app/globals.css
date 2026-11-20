@@ -40,4 +40,78 @@ body { min-height: 100%; }
   .tnum {
     font-variant-numeric: tabular-nums;
   }
+
+  /* ---- Motion system (TeachNest) ------------------------------------ */
+  /* All durations 200–500ms, ease-out. Disabled for reduced motion. */
+
+  .motion-reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 0.5s ease-out,
+      transform 0.5s ease-out;
+    will-change: opacity, transform;
+  }
+  .motion-reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @keyframes motion-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .motion-page-fade {
+    animation: motion-fade-in 0.25s ease-out both;
+  }
+
+  @keyframes motion-pop-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .motion-pop-in {
+    animation: motion-pop-in 0.25s ease-out both;
+  }
+
+  @keyframes motion-fade-in-only {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .motion-fade-in {
+    animation: motion-fade-in-only 0.2s ease-out both;
+  }
+
+  @keyframes motion-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  .motion-skeleton {
+    background: linear-gradient(90deg, rgba(120, 113, 108, 0.12) 25%, rgba(120, 113, 108, 0.22) 50%, rgba(120, 113, 108, 0.12) 75%);
+    background-size: 200% 100%;
+    animation: motion-shimmer 1.4s linear infinite;
+  }
+
+  @keyframes motion-spin-slow {
+    to { transform: rotate(360deg); }
+  }
+  .motion-icon-spin {
+    animation: motion-spin-slow 0.35s ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .motion-reveal,
+    .motion-page-fade,
+    .motion-pop-in,
+    .motion-fade-in,
+    .motion-skeleton,
+    .motion-icon-spin {
+      animation: none !important;
+      transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    html {
+      scroll-behavior: auto;
+    }
+  }
 }

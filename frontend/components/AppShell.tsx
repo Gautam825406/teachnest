@@ -142,7 +142,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname === href.split("?")[0];
 
   const navLinkClass = (active: boolean) =>
-    `relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+    `relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-all duration-200 ${
       active
         ? "bg-brand-50 font-medium text-brand-700 dark:bg-brand-950/60 dark:text-brand-200"
         : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -161,7 +161,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="block text-[11px] text-stone-500 dark:text-stone-400">Admin</span>
           </span>
         </Link>
-        <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800 lg:hidden" onClick={() => setDrawer(false)} aria-label="Close menu"><X size={18} /></button>
+        <button className="rounded-lg p-2 text-stone-500 transition-colors duration-200 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800 lg:hidden" onClick={() => setDrawer(false)} aria-label="Close menu"><X size={18} /></button>
       </div>
 
       <nav className="flex-1 px-3 pb-4">
@@ -179,7 +179,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     className={navLinkClass(active)}
                     aria-current={active ? "page" : undefined}
                   >
-                    {active && <span aria-hidden className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-brand-600" />}
+                    <span aria-hidden className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-brand-600 transition-all duration-200 ${active ? "scale-y-100 opacity-100" : "scale-y-50 opacity-0"}`} />
                     <Icon size={16} className={active ? "shrink-0 text-brand-700 dark:text-brand-200" : "shrink-0 text-stone-500 dark:text-stone-400"} />
                     <span className="truncate">{item.label}</span>
                   </Link>
@@ -192,14 +192,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                             key={child.href + child.label}
                             href={child.href}
                             onClick={() => setDrawer(false)}
-                            className={`relative block rounded-lg px-3 py-1.5 text-[13px] transition-colors ${
+                            className={`relative block rounded-lg px-3 py-1.5 text-[13px] transition-all duration-200 ${
                               childActive
                                 ? "bg-brand-50 font-medium text-brand-700 dark:bg-brand-950/60 dark:text-brand-200"
                                 : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
                             }`}
                             aria-current={childActive ? "page" : undefined}
                           >
-                            {childActive && <span aria-hidden className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-brand-600" />}
+                            <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-brand-600 transition-all duration-200 ${childActive ? "scale-y-100 opacity-100" : "scale-y-50 opacity-0"}`} />
                             {child.label}
                           </Link>
                         );
@@ -221,7 +221,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <p className="text-[11px] leading-relaxed text-stone-400 dark:text-stone-500">Admin Panel</p>
         <button
           onClick={logout}
-          className="mt-2 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+          className="mt-2 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] text-stone-600 transition-colors duration-200 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
         >
           <LogOut size={16} className="shrink-0 text-stone-500 dark:text-stone-400" />
           Log out
@@ -236,7 +236,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-stone-200 dark:border-stone-800 lg:block">{sidebar}</aside>
       {/* Mobile drawer */}
       {drawer && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="motion-fade-in fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setDrawer(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 shadow-xl">{sidebar}</aside>
         </div>
@@ -245,7 +245,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-stone-200 bg-white px-4 dark:border-stone-800 dark:bg-stone-900 sm:px-6">
-          <button className="rounded-lg p-2 text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800 lg:hidden" onClick={() => setDrawer(true)} aria-label="Open menu"><Menu size={20} /></button>
+          <button className="rounded-lg p-2 text-stone-600 transition-colors duration-200 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800 lg:hidden" onClick={() => setDrawer(true)} aria-label="Open menu"><Menu size={20} /></button>
           <Link href="/dashboard" className="flex items-center gap-2 lg:hidden" onClick={() => setDrawer(false)}>
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700">
               <GraduationCap size={18} className="text-white" />
@@ -260,15 +260,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="truncate">Quick find...</span>
             <kbd className="ml-auto shrink-0 rounded border border-stone-300 px-1.5 py-0.5 text-[11px] text-stone-500 dark:border-stone-600 dark:text-stone-400">Ctrl+K</kbd>
           </button>
-          <button onClick={openPalette} className="rounded-lg p-2 text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800 sm:hidden" aria-label="Quick find"><Search size={18} /></button>
+          <button onClick={openPalette} className="rounded-lg p-2 text-stone-600 transition-colors duration-200 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800 sm:hidden" aria-label="Quick find"><Search size={18} /></button>
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => { const next = !dark; setDark(next); applyTheme(next); }}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 text-stone-600 transition-colors duration-200 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
               title="Toggle theme"
               aria-label="Toggle theme"
             >
-              {dark ? <Sun size={16} /> : <Moon size={16} />}
+              <span key={dark ? "sun" : "moon"} className="motion-icon-spin flex items-center justify-center">
+                {dark ? <Sun size={16} /> : <Moon size={16} />}
+              </span>
             </button>
             {user && (
               <div className="hidden items-center gap-2.5 md:flex">
@@ -284,7 +286,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             )}
-            <button onClick={logout} className="rounded-lg p-2 text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800" title="Logout" aria-label="Logout"><LogOut size={18} /></button>
+            <button onClick={logout} className="rounded-lg p-2 text-stone-600 transition-colors duration-200 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800" title="Logout" aria-label="Logout"><LogOut size={18} /></button>
           </div>
         </header>
 
@@ -299,8 +301,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Command palette */}
       {paletteOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 p-4" onClick={() => setPaletteOpen(false)}>
-          <div className="mx-auto mt-20 max-w-lg overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl dark:border-stone-800 dark:bg-stone-900" onClick={(e) => e.stopPropagation()}>
+        <div className="motion-fade-in fixed inset-0 z-50 bg-black/60 p-4" onClick={() => setPaletteOpen(false)}>
+          <div className="motion-pop-in mx-auto mt-20 max-w-lg overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl dark:border-stone-800 dark:bg-stone-900" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 border-b border-stone-200 px-4 py-3 dark:border-stone-800">
               <Search size={18} className="shrink-0 text-stone-400" />
               <input
@@ -321,7 +323,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <button
                     key={item.href + item.label}
                     onClick={() => { setPaletteOpen(false); router.push(item.href); }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-stone-700 transition-colors duration-200 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
                   >
                     <Icon size={16} className="shrink-0 text-stone-500 dark:text-stone-400" />
                     {item.label}
