@@ -1,12 +1,25 @@
-"use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { getToken } from "@/lib/api";
+import type { Metadata } from "next";
+import LandingPage from "@/components/LandingPage";
+
+export const metadata: Metadata = {
+  title: "TeachNest — Run your coaching institute from one place",
+  description:
+    "TeachNest is the white-label platform for coaching institutes: admin panel, courses and video lectures, test series with an AI question-paper generator, live classes, a branded student app, and secure payments through Cashfree.",
+  openGraph: {
+    title: "TeachNest — Run your coaching institute from one place",
+    description:
+      "Admin panel, test series, live classes and a white-label student app for coaching institutes, with payments through Cashfree.",
+    type: "website",
+    siteName: "TeachNest",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TeachNest — Run your coaching institute from one place",
+    description:
+      "Admin panel, test series, live classes and a white-label student app for coaching institutes, with payments through Cashfree.",
+  },
+};
 
 export default function Home() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace(getToken() ? "/dashboard" : "/login");
-  }, [router]);
-  return <div className="flex min-h-screen items-center justify-center bg-stone-50 text-sm text-stone-500 dark:bg-stone-950">Loading...</div>;
+  return <LandingPage />;
 }
