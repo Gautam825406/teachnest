@@ -1,14 +1,14 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { apiFetch, formatINR, getStoredUser, toISODate, type DashboardStats } from "@/lib/api";
-import { Button, Card, ErrorBox, Input, Loading, Select } from "@/components/ui";
+import { apiFetch, formatINR, getStoredUser, integrationsStatusApi, paymentsApi, toISODate, type DashboardStats, type IntegrationStatus, type PaymentOrder } from "@/lib/api";
+import { Badge, Button, Card, ErrorBox, Field, Input, Loading, Modal, Select } from "@/components/ui";
 
 const CAROUSEL = [
   {
     title: "AI — Generate question papers instantly using AI!",
     body: "Simply upload any PDF, TXT, XLSX, CSV, image, or DOCX file and let AI build your question paper.",
-    link: "/dashboard/coming-soon?feature=AI%20Question%20Paper%20Generator",
+    link: "/dashboard/ai-generator",
     linkLabel: "Try AI Generator →",
   },
   {
@@ -31,6 +31,14 @@ export default function DashboardPage() {
   const [slide, setSlide] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [courseFilter, setCourseFilter] = useState("all");
+  const [gwStatus, setGwStatus] = useState<IntegrationStatus | null>(null);
+  const [payModal, setPayModal] = useState<"wallet" | "storage" | null>(null);
+  const [payAmount, setPayAmount] = useState("500");
+  const [payBusy, setPayBusy] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [payOrder, setPayOrder] = useState<PaymentOrder | null>(null);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<string | null>(null);
 
   const load = useCallback(async (start: string, end: string) => {
     setLoading(true);
@@ -45,6 +53,12 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+    try {
+      const s = await integrationsStatusApi.get();
+      setGwStatus(s);
+    } catch {
+      setGwStatus(null); // gateway card falls back to "status unavailable"
+    }
   }, []);
 
   useEffect(() => { load(startDate, endDate); }, []); // initial load only; Apply Filter re-fetches
@@ -53,11 +67,54 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
+  function openPayModal(kind: "wallet" | "storage") {
+    setPayModal(kind);
+    setPayAmount(kind === "wallet" ? "500" : "999");
+    setPayError(null);
+    setPayOrder(null);
+    setVerifyResult(null);
+  }
+
+  async function createPaymentOrder() {
+    if (!payModal) return;
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPayError("Enter a valid amount greater than 0.");
+      return;
+    }
+    setPayBusy(true);
+    setPayError(null);
+    setVerifyResult(null);
+    try {
+      const order = await paymentsApi.createOrder({ item_type: payModal, amount });
+      setPayOrder(order);
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : "Could not create the payment order.");
+    } finally { setPayBusy(false); }
+  }
+
+  async function verifyPayment() {
+    const orderId = payOrder?.order_id ?? payOrder?.cashfree_order_id;
+    if (!orderId) return;
+    setVerifyBusy(true);
+    setVerifyResult(null);
+    try {
+      const res = await paymentsApi.verifyReturn(orderId);
+      const status = String(res.payment_status || res.status || "unknown");
+      setVerifyResult(`Payment status: ${status}.`);
+      if (status.toUpperCase() === "SUCCESS" || status.toUpperCase() === "PAID") load(startDate, endDate);
+    } catch (e) {
+      setVerifyResult(e instanceof Error ? e.message : "Could not verify the payment yet.");
+    } finally { setVerifyBusy(false); }
+  }
+
   const storageMb = stats?.video_storage_mb ?? 0;
   const limitGb = stats?.video_storage_limit_gb ?? 1024;
   const limitMb = limitGb * 1024;
   const storagePct = limitMb > 0 ? Math.min(100, (storageMb / limitMb) * 100) : 0;
   const gw = stats?.payment_gateway;
+  const cashfreeConfigured = gwStatus?.cashfree?.configured === true;
+  const cashfreeEnv = gwStatus?.cashfree?.env;
 
   const cards: { label: string; value: string; sub?: string }[] = [
     { label: "Today's Earnings", value: formatINR(stats?.todays_earnings), sub: "Online & Offline" },
@@ -92,7 +149,7 @@ export default function DashboardPage() {
             <p className="text-xs font-medium text-slate-500">Wallet Balance</p>
             <p className="text-lg font-bold">{formatINR(stats?.wallet_balance)}</p>
           </div>
-          <Button variant="secondary" className="px-3" title="Top up wallet (coming soon in Phase 2)">+</Button>
+          <Button variant="secondary" className="px-3" title="Top up wallet via Cashfree" onClick={() => openPayModal("wallet")}>+</Button>
         </Card>
       </div>
 
@@ -169,18 +226,85 @@ export default function DashboardPage() {
               </div>
               <div className="mt-4 flex gap-2">
                 <Link href="/dashboard/settings"><Button variant="secondary">Storage Plan</Button></Link>
-                <Button variant="secondary" title="Storage purchase is coming in a later phase">Buy Storage</Button>
+                <Button variant="secondary" onClick={() => openPayModal("storage")}>Buy Storage</Button>
               </div>
             </Card>
             <Card className="p-4">
               <p className="text-xs font-semibold tracking-wider text-slate-500">PAYMENT GATEWAY</p>
-              <p className="mt-2 text-2xl font-bold">{gw?.provider || "Razorpay"} <span className="rounded bg-emerald-100 px-2 py-0.5 align-middle text-sm font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">{gw?.status || "LINKED"}</span></p>
-              <p className="mt-1 text-sm text-slate-500">Merchant ID: {gw?.merchant_id || "—"}</p>
+              <p className="mt-2 text-2xl font-bold">
+                Cashfree{" "}
+                {gwStatus ? (
+                  <Badge tone={cashfreeConfigured ? "green" : "slate"}>
+                    {cashfreeConfigured ? `CONFIGURED${cashfreeEnv ? ` — ${cashfreeEnv}` : ""}` : "NOT CONFIGURED"}
+                  </Badge>
+                ) : (
+                  <Badge tone="slate">STATUS UNAVAILABLE</Badge>
+                )}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                {gwStatus
+                  ? cashfreeConfigured
+                    ? `Cashfree is configured${cashfreeEnv ? ` (${cashfreeEnv})` : ""}. Student payments go through Cashfree.`
+                    : "Not configured — set CASHFREE_APP_ID / CASHFREE_SECRET_KEY in Render."
+                  : "Live gateway status is unavailable right now — the backend integration-status endpoint did not respond."}
+              </p>
+              {gw?.merchant_id && <p className="mt-1 text-sm text-slate-500">Merchant ID: {gw.merchant_id}</p>}
               <p className="mt-2 text-sm text-emerald-600">Secure API Channel</p>
+              <div className="mt-3">
+                <Link href="/dashboard/integrations"><Button variant="secondary">View Integrations</Button></Link>
+              </div>
             </Card>
           </div>
         </>
       )}
+
+      <Modal open={payModal !== null} title={payModal === "wallet" ? "Wallet Top-up" : "Buy Storage"} onClose={() => setPayModal(null)}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {payModal === "wallet"
+              ? "Top up your institute wallet. You will be taken to Cashfree to complete the payment."
+              : "Buy additional video storage. You will be taken to Cashfree to complete the payment."}
+          </p>
+          {!payOrder ? (
+            <>
+              <Field label="Amount (Rs.)" required>
+                <Input type="number" min={1} value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required />
+              </Field>
+              <ErrorBox message={payError} />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={() => setPayModal(null)}>Cancel</Button>
+                <Button onClick={createPaymentOrder} disabled={payBusy}>{payBusy ? "Creating order..." : "Create Payment Order"}</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm">
+                Order created: <span className="font-mono text-xs">{String(payOrder.cashfree_order_id || payOrder.order_id || "—")}</span>
+                {" • "}Amount: <span className="font-semibold">{formatINR(payOrder.amount_rupees ?? (payOrder.amount ? payOrder.amount / 100 : Number(payAmount)))}</span>
+              </p>
+              {payOrder.payment_link ? (
+                <p className="text-sm">
+                  <a href={payOrder.payment_link} target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-600 underline">
+                    Open Cashfree payment page (new tab) →
+                  </a>
+                </p>
+              ) : (
+                <p className="text-sm text-slate-500">No payment link was returned for this order.</p>
+              )}
+              <ErrorBox message={payError} />
+              {verifyResult && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
+                  {verifyResult}
+                </div>
+              )}
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={() => setPayModal(null)}>Close</Button>
+                <Button onClick={verifyPayment} disabled={verifyBusy}>{verifyBusy ? "Verifying..." : "Verify payment"}</Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

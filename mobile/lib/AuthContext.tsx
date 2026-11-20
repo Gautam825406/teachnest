@@ -11,7 +11,12 @@ interface AuthState {
   loading: boolean;
   orgCode: string;
   phone: string;
-  requestOtp: (orgCode: string, phone: string) => Promise<string>;
+  /** True when the last OTP was a demo OTP (SMS not configured by the institute),
+   * false when a real SMS was sent, null when no OTP has been requested yet. */
+  otpDemo: boolean | null;
+  /** Demo OTP value from the backend, if any — shown only when otpDemo is true. */
+  otpDemoValue: string | null;
+  requestOtp: (orgCode: string, phone: string) => Promise<string | null>;
   verifyOtp: (otp: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -24,6 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [orgCode, setOrgCode] = useState('');
   const [phone, setPhone] = useState('');
+  const [otpDemo, setOtpDemo] = useState<boolean | null>(null);
+  const [otpDemoValue, setOtpDemoValue] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -51,7 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.requestOtp(org, ph);
     setOrgCode(org);
     setPhone(ph);
-    return res.demo_otp;
+    // The backend is the source of truth: demo:true means SMS is not
+    // configured. Older backends omit `demo` but return a demo_otp value.
+    const isDemo = res.demo ?? (res.demo_otp ? true : false);
+    setOtpDemo(isDemo);
+    setOtpDemoValue(isDemo ? (res.demo_otp ?? null) : null);
+    return res.demo_otp ?? null;
   }, []);
 
   const verifyOtp = useCallback(
@@ -74,8 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ token, student, loading, orgCode, phone, requestOtp, verifyOtp, logout }),
-    [token, student, loading, orgCode, phone, requestOtp, verifyOtp, logout],
+    () => ({ token, student, loading, orgCode, phone, otpDemo, otpDemoValue, requestOtp, verifyOtp, logout }),
+    [token, student, loading, orgCode, phone, otpDemo, otpDemoValue, requestOtp, verifyOtp, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

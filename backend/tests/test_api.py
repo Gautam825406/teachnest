@@ -56,8 +56,8 @@ def test_seed_demo_login_and_dashboard(client, admin_headers):
     # SUCCESS orders: 1999 + 1999 + 1999 + 999 = 6996
     assert d["total_earnings"] == 6996.0
     assert d["storage_plan"] == "FREE"
-    assert d["payment_gateway"]["provider"] == "Razorpay"
-    assert d["payment_gateway"]["merchant_id"] == "SQIP****"
+    assert d["payment_gateway"]["provider"] == "Cashfree"
+    assert d["payment_gateway"]["status"] in ("LINKED", "NOT_CONFIGURED")
 
 
 def test_courses_crud(client, admin_headers):

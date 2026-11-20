@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { apiDownload, apiFetch, asList, formatDate, formatINR, ordersActionsApi, type AnyRecord, type Order, type Paged } from "@/lib/api";
+import { apiDownload, apiFetch, asList, formatDate, formatINR, ordersActionsApi, paymentsApi, type AnyRecord, type Order, type Paged } from "@/lib/api";
 import { Badge, BannerHeader, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Modal, Select, Textarea } from "@/components/ui";
 
 function studentName(o: Order): string {
@@ -41,6 +41,8 @@ export default function OrdersPage() {
   const [deactivateOrder, setDeactivateOrder] = useState<Order | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [payInfo, setPayInfo] = useState<Record<string, string>>({});
+  const [payChecking, setPayChecking] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,6 +119,29 @@ export default function OrdersPage() {
     finally { setBusy(false); }
   }
 
+  async function checkPayment(o: Order) {
+    const key = String(o.id);
+    setPayChecking(key);
+    // Payment records are keyed by the Cashfree order id (e.g. "TN-..."), which
+    // the legacy order row may carry as transaction_id; fall back to the row id.
+    const candidates = [String(o.transaction_id || ""), key].filter((c, i, a) => c && a.indexOf(c) === i);
+    let lastError = "Payment lookup failed.";
+    for (const candidate of candidates) {
+      try {
+        const res = await paymentsApi.get(candidate);
+        const cfId = String(res.cashfree_order_id || "");
+        const status = String(res.payment_status || res.status || "");
+        setPayInfo((prev) => ({ ...prev, [key]: `${cfId ? `Cashfree: ${cfId}` : "Cashfree order id not recorded"}${status ? ` • ${status}` : ""}` }));
+        setPayChecking(null);
+        return;
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : "Payment lookup failed.";
+      }
+    }
+    setPayInfo((prev) => ({ ...prev, [key]: lastError }));
+    setPayChecking(null);
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / perPage));
 
   return (
@@ -158,13 +183,14 @@ export default function OrdersPage() {
         <EmptyState title={view === "deactivated" ? "No deactivated courses" : "No orders yet"} subtitle={view === "deactivated" ? "Deactivated course orders will appear here." : "Orders will appear here once students make a purchase."} />
       ) : (
         <Card className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[1050px] text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
               <tr>
                 <th className="px-4 py-3 font-semibold">STUDENT</th>
                 <th className="px-4 py-3 font-semibold">CONTACT</th>
                 <th className="px-4 py-3 font-semibold">STATUS</th>
                 <th className="px-4 py-3 font-semibold">TRANSACTION ID</th>
+                <th className="px-4 py-3 font-semibold">CASHFREE / PAYMENT</th>
                 <th className="px-4 py-3 font-semibold">DATE &amp; AMOUNT</th>
                 <th className="px-4 py-3 font-semibold">ITEMS</th>
                 <th className="px-4 py-3 font-semibold">ACTIONS</th>
@@ -177,6 +203,20 @@ export default function OrdersPage() {
                   <td className="px-4 py-3">{contactOf(o)}</td>
                   <td className="px-4 py-3"><Badge tone={String(o.status).toUpperCase() === "SUCCESS" ? "green" : String(o.status).toUpperCase() === "PENDING" ? "amber" : "slate"}>{String(o.status || "—")}</Badge></td>
                   <td className="px-4 py-3 font-mono text-xs">{String(o.transaction_id || o.id)}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {(() => {
+                      const cfId = String((o as AnyRecord).cashfree_order_id || "");
+                      const pStatus = String((o as AnyRecord).payment_status || "");
+                      const lookedUp = payInfo[String(o.id)];
+                      if (lookedUp) return <span>{lookedUp}</span>;
+                      if (cfId || pStatus) return <span className="font-mono">{cfId || "—"}{pStatus ? ` • ${pStatus}` : ""}</span>;
+                      return (
+                        <Button variant="secondary" className="px-3 py-1 text-xs" onClick={() => checkPayment(o)} disabled={payChecking === String(o.id)}>
+                          {payChecking === String(o.id) ? "Checking..." : "Check payment"}
+                        </Button>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-3">{formatDate(dateOf(o))}<br /><span className="font-semibold">{formatINR(amountOf(o))}</span></td>
                   <td className="max-w-48 truncate px-4 py-3">{itemsOf(o)}</td>
                   <td className="px-4 py-3">

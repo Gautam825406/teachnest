@@ -1,4 +1,4 @@
-# TeachNest — Backend (Phase 2)
+# TeachNest — Backend (Phase 4)
 
 FastAPI + SQLAlchemy + Pydantic v2. Multi-tenant SaaS backend built from the
 functionality map in `~/workspace/your_files/classwalla-clone-functionality-map.md`
@@ -38,6 +38,21 @@ Other env vars:
 | `FRONTEND_ORIGIN` | `http://localhost:3000` | Allowed CORS origin |
 | `UPLOAD_DIR` | `backend/uploads/` | Local upload store (see below) |
 | `UPLOAD_BACKEND` | `local` | `local` only for now; `s3`/`r2` is a future switch |
+| `CASHFREE_APP_ID` | _(unset)_ | Cashfree PG app id — payments return `503` until set |
+| `CASHFREE_SECRET_KEY` | _(unset)_ | Cashfree PG secret key — **never commit or log** |
+| `CASHFREE_ENV` | `SANDBOX` | `SANDBOX` or `PROD` (Cashfree base URL switches on this) |
+| `GROQ_API_KEY` | _(unset)_ | Groq API key for AI question generation |
+| `WHATSAPP_TOKEN` | _(unset)_ | Meta WhatsApp Cloud API bearer token |
+| `WHATSAPP_PHONE_NUMBER_ID` | _(unset)_ | Meta WhatsApp phone number id |
+| `HMS_API_KEY` / `HMS_API_SECRET` | _(unset)_ | 100ms live-class credentials (either pair enables live) |
+| `AGORA_APP_ID` / `AGORA_APP_CERTIFICATE` | _(unset)_ | Agora live-class credentials (fallback if 100ms unset) |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | _(unset)_ | FCM service-account JSON string **or** path to the JSON file |
+| `MSG91_API_KEY` | _(unset)_ | MSG91 key — enables real SMS OTPs (else demo OTP `123456`) |
+| `EXOTEL_SID` / `EXOTEL_API_KEY` / `EXOTEL_TOKEN` | _(unset)_ | Exotel SMS fallback (only used if MSG91 is unset) |
+
+Set env vars in the Render dashboard (service → Environment), never in the
+repo. No key is ever returned by any endpoint — `/api/integrations/status`
+reports only `configured` booleans.
 
 ## Auth
 
@@ -84,7 +99,8 @@ All seed data is clearly demo data (`.local` / `example.com` emails,
 - `GET /api/health` → `{"status": "ok"}`
 - `GET /api/dashboard/stats?start_date=&end_date=` — earnings/students/
   courses/teachers/orders computed from real DB rows; storage FREE 1 TB;
-  payment gateway Razorpay LINKED `SQIP****`.
+  payment gateway Cashfree (`LINKED` when `CASHFREE_APP_ID` +
+  `CASHFREE_SECRET_KEY` are set, else `NOT_CONFIGURED`).
 - Courses: `GET/POST /api/courses`, `GET/PUT/DELETE /api/courses/{id}`
   (`?search=&category_id=&page=&per_page=`, returns `{items, total}`)
 - Categories: `GET/POST/PUT/DELETE /api/course-categories`,
@@ -178,3 +194,59 @@ pytest -v
 
 Tests use a temporary SQLite database (see `tests/conftest.py`) and never
 touch `app.db`.
+
+## Phase 4 — Integrations & AI (Cashfree, Groq, WhatsApp, FCM, live, SMS)
+
+All Phase 4 endpoints are tenant-scoped; requesting another tenant's payment
+returns `404`. Amounts are stored in paise (integer) on `PaymentTransaction`;
+API responses also include `amount_rupees`.
+
+- `GET /api/integrations/status` (admin) — `{cashfree: {configured, env},
+  groq, whatsapp, live: {provider, configured}, fcm, sms: {provider,
+  configured}}`. Never returns a secret value.
+- Payments (Cashfree PG, `x-api-version: 2023-08-01`):
+  `POST /api/payments/create-order` (admin) `{item_type: course|bundle|wallet|storage,
+  item_id?, amount?, student_id?}` → `{order_id, cashfree_order_id,
+  payment_session_id, payment_link, amount}`; `503 "Cashfree not configured"`
+  when keys are unset. `GET /api/payments/{order_id}` (admin, tenant-scoped).
+  `POST /api/payments/cashfree/webhook` (**no auth**) — verifies
+  `x-webhook-signature` (base64 HMAC-SHA256 of `x-webhook-timestamp` +
+  raw body, keyed by `CASHFREE_SECRET_KEY`); bad signature → `401`; a
+  verified success event marks the transaction `PAID` and grants enrolment
+  (creates the SUCCESS `Order` row and adds the course/bundle courses to
+  the student's `course_ids`; wallet/storage purchases only get the Order
+  row). `GET /api/payments/cashfree/return?order_id=` — server-side verify
+  via Cashfree `GET /pg/orders/{cf_order_id}/payments`.
+  **Cashfree webhook URL to register in the Cashfree dashboard:**
+  `https://<render-service>.onrender.com/api/payments/cashfree/webhook`
+  (e.g. `https://teachnest-api.onrender.com/api/payments/cashfree/webhook`).
+- Student payments: `POST /api/student/payments/create-order`
+  `{item_type: course|bundle, item_id}` (price taken from the course/bundle),
+  `POST /api/student/payments/verify {order_id}` (server-side Cashfree
+  verify → `PAID` + enrolment), `GET /api/student/payments/{order_id}`.
+- AI questions (Groq `llama-3.3-70b-versatile`, strict JSON output):
+  `POST /api/ai/generate-questions` (multipart: `file` pdf/txt/xlsx/csv/docx/
+  image, or `text` field; `topic`, `class_name`, `difficulty`, `count` ≤ 20,
+  `question_types` mcq|short) → draft questions + `generation_id` stored as
+  an `AIGeneration` draft; `503 "AI not configured"` without `GROQ_API_KEY`.
+  Images need `pytesseract` (not installed) — otherwise a clear `400`.
+  `POST /api/ai/questions/save {generation_id, test_series_id, questions}`
+  inserts the (edited) questions into the test-series question bank and
+  marks the generation `saved`. `GET /api/ai/generations` lists drafts.
+- WhatsApp (Meta Graph API v21.0): `POST /api/integrations/whatsapp/send`
+  `{to, template, params}` — templates only: `teachnest_enrolment`,
+  `teachnest_payment_receipt`, `teachnest_test_reminder`; `503 "WhatsApp
+  not configured"` without token/phone-number-id. Every attempt is logged
+  in `IntegrationLog` (`GET /api/integrations/logs`).
+- Push (FCM): `POST /api/integrations/push/send {title, body, topic|
+  student_ids}` — Firebase Admin from `FIREBASE_SERVICE_ACCOUNT_JSON`;
+  `503` when unconfigured; per-student send needs registered device tokens
+  (none are stored yet) so use a topic. Attempts are logged.
+- Live: `GET /api/live/config` → `{provider: "100ms"|"agora"|null,
+  configured, join_url_template: null}` — no fake join URL when unconfigured.
+- SMS OTP: `POST /api/student/auth/request-otp` sends a real OTP via MSG91
+  (or Exotel SMS if MSG91 is unset) when configured and stores it in
+  `otp_usage` for verification; otherwise it returns `{demo: true,
+  demo_otp: "123456", message: "Demo OTP — SMS not configured"}`. On SMS
+  send failure it falls back to the demo OTP.
+

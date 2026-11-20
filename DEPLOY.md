@@ -101,6 +101,6 @@ and confirm the dashboard loads with real data (5 courses, 8 students,
 
 - Render free tier sleeps after ~15 min idle — first request is slow.
 - SQLite is ephemeral on Render (see Step 2).
-- Razorpay is a LINKED-status stub only; no real payments.
+- Cashfree is the payment provider (Phase 4). Set `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV` in the Render dashboard and register the webhook `https://<render-service>.onrender.com/api/payments/cashfree/webhook` in the Cashfree dashboard; until then payments report "Cashfree not configured".
 - File uploads store only the filename in Phase 1.
 - Full browser click-through was not verified by the build agent.

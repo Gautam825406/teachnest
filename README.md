@@ -65,7 +65,7 @@ copied. All UI text is in English.
 | Backend API | FastAPI (Python 3.12) + SQLAlchemy + Pydantic v2 |
 | Database | SQLite by default for local dev; PostgreSQL via `DATABASE_URL` (see below) |
 | Auth | JWT (carries `tenant_id`), bcrypt password hashing |
-| Payments | Razorpay — **Phase 1 stub only**: the dashboard shows LINKED status, no real payments are wired |
+| Payments | Cashfree PG (Phase 4, real) — orders, webhook, server-side verify; shows "not configured" until keys are set |
 
 ## Repo structure
 
@@ -151,7 +151,7 @@ Signup also works end-to-end: it creates a new tenant + ORG code + Super Admin.
    (AI question-paper item + storage billing item); Filter Analytics with
    date-range picker; stat cards (Today's Earnings, Recently Joined, Total
    Earnings, Total Classes Taken, Video Storage with Storage Plan / Buy Storage,
-   Payment Gateway card: Razorpay LINKED).
+   Payment Gateway card: Cashfree, with live configured/not-configured status (Phase 4).
 3. **Sidebar in the exact spec order/groups** — Dashboard; Academics &
    Content; Testing & Resources; Students & Marketing; Sales & Billing;
    System & Config. Items beyond Phase 1 show a clean "Coming soon in
@@ -215,15 +215,14 @@ and `backend/README.md`.
   **name** as the URL string. A real upload endpoint (Phase 2) replaces this.
 - **Video storage:** dashboard card only in Phase 1 (0.0 MB used / 1.00 TB,
   FREE plan). No videos exist yet, so nothing is invented.
-- **Razorpay:** status display only; no payment wiring, no keys.
+- **Cashfree:** real PG integration in Phase 4 (see below). Until `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY` are set, payments honestly report "Cashfree not configured".
 - **Dashboard "All courses" filter:** only the "All courses" option exists;
   the date filter is the one that re-fetches stats (no per-course stats
   parameter in the Phase 1 contract).
 
 ## What is still missing (Phase 3 / Phase 4)
 
-- Real Razorpay checkout, wallet top-up / storage purchase, video
-  storage/streaming (uploads are local disk in Phase 2)
+- Video storage/streaming (uploads are local disk in Phase 2)
 - AI question-paper generator (upload PDF/TXT/XLSX/CSV/image/DOCX) —
   TeachNest AI is a status-only card in Phase 2
 - Real WhatsApp integration (status-only card in Phase 2)
@@ -253,7 +252,7 @@ steps and how to run (Expo Go / emulator).
   My Orders, Notifications, Help & Support enquiry, Settings, Logout).
 - **Demo purchase only** — Buy Now creates a SUCCESS order with a
   `DEMO-<id>` transaction id and grants access; labelled "Demo purchase —
-  no real payment" in the app. No real Razorpay, no real OTP SMS, no real
+  no real payment" in the app. No real Cashfree payment, no real OTP SMS, no real
   live-class video, no real push (notifications list in-app only).
 - **Demo student login** — org code `DEMO0001`, any 10-digit mobile
   (e.g. `9876500001` = seeded student Aarav Sharma), OTP `123456`, name
@@ -276,7 +275,11 @@ steps and how to run (Expo Go / emulator).
   is not installed; Hermes bytecode export fails in this VM's hermesc on
   React Native's own files (toolchain issue, not app code).
 
-## Phase 4 (not started)
+## Phase 4 — Integrations & AI (built 20 Nov 2026, local only — NOT pushed to GitHub, NOT deployed live)
 
-Integrations & AI: real WhatsApp API, AI question-paper generator, storage
-plans + billing, wallet top-up.
+Cashfree replaces Razorpay everywhere (no Razorpay code remains in the app).
+- **Cashfree payments** — `POST /api/payments/create-order` (Cashfree PG API 2023-08-01, `payment_session_id` + payment link), `POST /api/payments/cashfree/webhook` (HMAC-SHA256 signature verification; verified success marks PAID and grants enrolment), `GET /api/payments/cashfree/return` (server-side verify). Student flow: `POST /api/student/payments/create-order` → payment link in-app → `POST /api/student/payments/verify`. Wallet top-up and storage purchase use the same flow. Without `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY` every payment call returns 503 "Cashfree not configured" — never a fake success. Webhook URL to register in the Cashfree dashboard: `https://teachnest-api.onrender.com/api/payments/cashfree/webhook`.
+- **AI question-paper generator** — admin page `/dashboard/ai-generator`: upload PDF/TXT/XLSX/CSV/DOCX (images need pytesseract, not installed — clear error otherwise) or paste text; Groq (`llama-3.3-70b-versatile`) generates MCQ/short questions; teacher reviews/edits, saves into a test series. Without `GROQ_API_KEY` → "AI not configured".
+- **WhatsApp** — Meta WhatsApp Cloud API (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`); templates `teachnest_enrolment`, `teachnest_payment_receipt`, `teachnest_test_reminder`; every attempt logged. **FCM push** — `FIREBASE_SERVICE_ACCOUNT_JSON`; topic-based sends. **Live classes** — 100ms (`HMS_*`) or Agora (`AGORA_*`); unconfigured keeps the DEMO label; student live config at `GET /api/student/live/config`. **OTP SMS** — MSG91 (`MSG91_API_KEY`) with Exotel fallback; unconfigured keeps demo OTP `123456` labelled DEMO.
+- **Verification (20 Nov 2026, local)** — backend pytest **53 passed** (38 pre-existing + 15 Phase 4); frontend `npm run build` passes (41 routes incl. `/dashboard/ai-generator`); mobile `npx tsc --noEmit` passes. Live smoke test: integrations status shows all providers unconfigured with no secrets leaked; create-order → 503; AI generate → 503; student live config → 200 with a student token.
+- **Env vars to set (Render dashboard → Environment; Vercel needs none new)** — `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV` (SANDBOX default), `GROQ_API_KEY`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `HMS_API_KEY`/`HMS_API_SECRET` or `AGORA_APP_ID`/`AGORA_APP_CERTIFICATE`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `MSG91_API_KEY`, `EXOTEL_SID`/`EXOTEL_API_KEY`/`EXOTEL_TOKEN`. Full details in `backend/README.md`. No real provider has been tested end-to-end yet — a real Cashfree (sandbox) payment test is still needed after keys are set.

@@ -1329,3 +1329,49 @@ class OrderRefundRequest(BaseModel):
 class PaginatedUsers(BaseModel):
     items: list[UserListOut]
     total: int
+
+
+# ---------- Phase 4 ----------
+class PaymentTransactionOut(BaseModel):
+    id: int
+    order_id: str
+    cashfree_order_id: str
+    item_type: str
+    item_id: int | None
+    student_id: int | None
+    amount: int  # paise
+    amount_rupees: float = 0.0
+    currency: str
+    status: str
+    payment_session_id: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class AIGenerationOut(BaseModel):
+    id: int
+    source_filename: str
+    topic: str
+    class_name: str
+    difficulty: str
+    count: int
+    draft_json: list = []
+    status: str
+    test_series_id: int | None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class IntegrationLogOut(BaseModel):
+    id: int
+    channel: str
+    recipient: str
+    template_name: str
+    status: str
+    detail: str
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}

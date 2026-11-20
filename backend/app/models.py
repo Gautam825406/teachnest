@@ -509,3 +509,50 @@ class CourseLog(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     details = Column(Text, default="", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ---------- Phase 4: payments, AI, integration logs ----------
+class PaymentTransaction(Base):
+    """Cashfree payment transaction. amount is stored in paise (integer)."""
+    __tablename__ = "payment_transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    order_id = Column(String(100), unique=True, nullable=False, index=True)
+    cashfree_order_id = Column(String(255), default="", nullable=False)
+    item_type = Column(String(50), nullable=False)  # course|bundle|wallet|storage
+    item_id = Column(Integer, nullable=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
+    amount = Column(Integer, default=0, nullable=False)  # paise
+    currency = Column(String(10), default="INR", nullable=False)
+    status = Column(String(20), default="PENDING", nullable=False)  # PENDING|PAID|FAILED
+    payment_session_id = Column(String(1024), default="", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class AIGeneration(Base):
+    __tablename__ = "ai_generations"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    source_filename = Column(String(500), default="", nullable=False)
+    topic = Column(String(500), default="", nullable=False)
+    class_name = Column(String(255), default="", nullable=False)
+    difficulty = Column(String(50), default="medium", nullable=False)
+    count = Column(Integer, default=0, nullable=False)
+    draft_json = Column(JSON, default=list, nullable=False)
+    status = Column(String(20), default="draft", nullable=False)  # draft|saved
+    test_series_id = Column(Integer, ForeignKey("test_series.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class IntegrationLog(Base):
+    __tablename__ = "integration_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    channel = Column(String(50), nullable=False)  # whatsapp|push|sms
+    recipient = Column(String(255), default="", nullable=False)
+    template_name = Column(String(255), default="", nullable=False)
+    status = Column(String(20), default="sent", nullable=False)  # sent|failed|not_configured
+    detail = Column(Text, default="", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+

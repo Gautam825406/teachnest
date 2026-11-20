@@ -405,3 +405,126 @@ export const toppersCallListApi = {
   list: () => apiFetch<Paged<Topper> | Topper[]>("/toppers/call-list"),
 };
 
+/* ---------------- Phase 4: live integrations, payments, AI, live classes ---------------- */
+
+export interface IntegrationStatus {
+  cashfree?: { configured?: boolean; env?: string };
+  groq?: { configured?: boolean };
+  whatsapp?: { configured?: boolean };
+  live?: { provider?: string; configured?: boolean };
+  fcm?: { configured?: boolean };
+  sms?: { provider?: string; configured?: boolean };
+  [key: string]: unknown;
+}
+
+export interface PaymentOrder {
+  order_id?: number | string;
+  cashfree_order_id?: string;
+  payment_session_id?: string;
+  payment_link?: string;
+  amount?: number; // paise (backend txn.amount)
+  amount_rupees?: number;
+  status?: string;
+  payment_status?: string;
+  [key: string]: unknown;
+}
+
+/** Draft question in the backend's normalised shape: {question, options[], correct_option, answer, marks}. */
+export interface AiDraftQuestion {
+  question?: string;
+  question_text?: string;
+  options?: string[];
+  option_a?: string;
+  option_b?: string;
+  option_c?: string;
+  option_d?: string;
+  correct_option?: string;
+  answer?: string;
+  marks?: number;
+  negative_marks?: number;
+  topic?: string;
+  [key: string]: unknown;
+}
+
+export interface AiGeneration {
+  generation_id?: number | string;
+  id?: number | string;
+  topic?: string;
+  class_name?: string;
+  difficulty?: string;
+  count?: number;
+  status?: string;
+  created_at?: string;
+  source_filename?: string;
+  test_series_id?: number | string | null;
+  questions?: AiDraftQuestion[];
+  draft_json?: AiDraftQuestion[];
+  [key: string]: unknown;
+}
+
+export interface LiveConfig {
+  provider?: string;
+  configured?: boolean;
+  [key: string]: unknown;
+}
+
+/** Multipart POST with auth (for file uploads such as AI question generation). */
+export async function apiFetchForm<T>(path: string, form: FormData): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form });
+  if (res.status === 401) {
+    clearAuth();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) window.location.href = "/login";
+    throw new ApiError(401, "Session has expired. Please log in again.");
+  }
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      msg = (data as { detail?: string; message?: string }).detail ||
+        (data as { detail?: string; message?: string }).message || msg;
+    } catch { /* keep default */ }
+    throw new ApiError(res.status, msg);
+  }
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : (undefined as T);
+}
+
+export const integrationsStatusApi = {
+  get: () => apiFetch<IntegrationStatus>("/integrations/status"),
+};
+
+export const paymentsApi = {
+  createOrder: (body: { item_type: string; item_id?: number | string; amount: number }) =>
+    apiFetch<PaymentOrder>("/payments/create-order", { method: "POST", body: JSON.stringify(body) }),
+  get: (orderId: number | string) => apiFetch<PaymentOrder>(`/payments/${orderId}`),
+  verifyReturn: (orderId: number | string) =>
+    apiFetch<PaymentOrder>(`/payments/cashfree/return?order_id=${encodeURIComponent(String(orderId))}`),
+};
+
+export const aiGeneratorApi = {
+  generate: (form: FormData) => apiFetchForm<AiGeneration>("/ai/generate-questions", form),
+  save: (body: { generation_id: number; test_series_id: number; questions: AiDraftQuestion[] }) =>
+    apiFetch("/ai/questions/save", { method: "POST", body: JSON.stringify(body) }),
+  generations: () => apiFetch<Paged<AiGeneration> | AiGeneration[]>("/ai/generations"),
+};
+
+export const messagingApi = {
+  whatsappSend: (body: { to: string; template: string; params?: string[] }) =>
+    apiFetch<{ success?: boolean; message?: string; status?: string; [key: string]: unknown }>("/integrations/whatsapp/send", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  pushSend: (body: { title: string; body: string; topic?: string }) =>
+    apiFetch<{ success?: boolean; message?: string; status?: string; [key: string]: unknown }>("/integrations/push/send", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
+export const liveConfigApi = {
+  get: () => apiFetch<LiveConfig>("/live/config"),
+};
+

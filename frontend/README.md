@@ -1,4 +1,4 @@
-# TeachNest — Frontend (Phase 1)
+# TeachNest — Frontend (Phase 1–4)
 
 Next.js 14 (App Router, React + TypeScript) + Tailwind CSS. Hand-rolled
 shadcn/ui-style components (no shadcn CLI dependency). All UI text is in
@@ -25,6 +25,28 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api
 
 The backend is expected at that URL; the frontend does not start one.
 
+No secrets live in the frontend. All credentials are backend-only Render
+environment variables, surfaced in the UI only as configured/not-configured
+status:
+
+- `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV` (PROD or SANDBOX) — payments
+- `GROQ_API_KEY` — TeachNest AI / AI Question Paper Generator
+- WhatsApp provider credentials — WhatsApp test messages
+- Live provider credentials (100ms or Agora) — live classes
+- FCM credentials — push notifications
+- SMS provider credentials — SMS OTP
+
+## Phase 4 endpoints used
+
+- `GET /api/integrations/status` — live status for Cashfree, Groq, WhatsApp, live, FCM, SMS
+- `POST /api/payments/create-order` `{item_type, item_id, amount}` → payment link; `GET /api/payments/{order_id}`; `GET /api/payments/cashfree/return?order_id=`
+- `POST /api/ai/generate-questions` (multipart file or text + topic, class_name, difficulty, count, question_type); `POST /api/ai/questions/save`; `GET /api/ai/generations`
+- `POST /api/integrations/whatsapp/send`; `POST /api/integrations/push/send`
+- `GET /api/live/config`
+
+If a Phase 4 endpoint is not deployed yet (404), the page shows an honest
+"unavailable / not configured" state instead of fake data.
+
 ## Auth
 
 - `/login` — username + password, "Let's Go" button. On success the JWT
@@ -40,13 +62,16 @@ The backend is expected at that URL; the frontend does not start one.
 
 | Route | What it does |
 | --- | --- |
-| `/dashboard` | Stats from `GET /api/dashboard/stats?start_date&end_date`, wallet, storage, Razorpay gateway card, Updates & News carousel, FILTER ANALYTICS (date range + Apply Filter re-fetches stats) |
+| `/dashboard` | Stats from `GET /api/dashboard/stats?start_date&end_date`, wallet, storage, Cashfree gateway card (live status from `GET /api/integrations/status`), Updates & News carousel, FILTER ANALYTICS (date range + Apply Filter re-fetches stats). Wallet top-up and Buy Storage open a Cashfree payment order (`POST /api/payments/create-order`) with a payment link and a Verify payment button (`GET /api/payments/cashfree/return?order_id=`) |
+| `/dashboard/integrations` | Live integration status from `GET /api/integrations/status` — Cashfree (PROD/SANDBOX or not configured), TeachNest AI (Groq), WhatsApp, Live classes, Push (FCM), SMS OTP — each with the env vars it needs. WhatsApp test-send form (`POST /api/integrations/whatsapp/send`) and Push send form (`POST /api/integrations/push/send`), both showing the backend's honest "not configured" error when the service is not set up |
+| `/dashboard/ai-generator` | AI Question Paper Generator — upload PDF/TXT/XLSX/CSV/DOCX/image or paste text, set topic/class/difficulty/count/question type, `POST /api/ai/generate-questions` (multipart), edit draft questions, then save to an existing test series via `POST /api/ai/questions/save`; past generations from `GET /api/ai/generations`. If Groq is not configured it shows "AI not configured — set GROQ_API_KEY" and never fakes questions |
 | `/dashboard/courses` | Course list (search, per-page, pagination, Edit/Delete) |
 | `/dashboard/courses/new`, `/dashboard/courses/[id]/edit` | "Manage Course" — 5 sections (Basic, Meta, Social, Advance, Teachers) with live preview card |
 | `/dashboard/courses/categories` | Course Category + Course Sub Category CRUD |
 | `/dashboard/students`, `/dashboard/students/[id]` | Student Directory (search by name/phone/email/date/city/state) + detail view |
-| `/dashboard/orders` | All Orders table + CSV export via `GET /api/orders/export` |
+| `/dashboard/orders` | All Orders table + CSV export via `GET /api/orders/export`; Cashfree order id + payment status column, with a per-order "Check payment" lookup via `GET /api/payments/{order_id}` |
 | `/dashboard/teachers` | Teacher list + Create/Edit modal with all spec fields |
+| `/dashboard/seminars` | Seminar list + Create/Edit, with a live-class provider/config banner from `GET /api/live/config` (DEMO label while unconfigured — never claims a real class is live) |
 | `/dashboard/roles` | Roles + Create/Edit modal with the exact 36 permissions |
 | `/dashboard/settings` | Company Settings tabs (Company Info, About Us, Privacy Policy, Refund Policy, Terms & Conditions) |
 | `/dashboard/coming-soon?feature=X` | Shared "Coming soon in Phase 2" empty state for every non-Phase-1 sidebar item |

@@ -17,7 +17,8 @@
     "newArchEnabled": true,
     "orientation": "portrait",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-web-browser"
     ],
     "scheme": "teachnest",
     "slug": "teachnest-app",

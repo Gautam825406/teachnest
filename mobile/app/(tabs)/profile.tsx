@@ -12,6 +12,22 @@ export default function ProfileScreen() {
   const [section, setSection] = useState<'main' | 'courses' | 'orders' | 'notifications' | 'help'>('main');
   const [enquiry, setEnquiry] = useState('');
   const [enquiryBusy, setEnquiryBusy] = useState(false);
+  // Live payment status per order, fetched on demand from /student/payments/{id}.
+  const [paymentStatus, setPaymentStatus] = useState<Record<string, { status: string; busy: boolean; error?: string }>>({});
+
+  const checkPaymentStatus = async (orderId: string | number) => {
+    const key = String(orderId);
+    setPaymentStatus((prev) => ({ ...prev, [key]: { status: prev[key]?.status ?? '', busy: true } }));
+    try {
+      const record = await api.getPayment(orderId);
+      setPaymentStatus((prev) => ({ ...prev, [key]: { status: record.status ?? '—', busy: false } }));
+    } catch (e) {
+      setPaymentStatus((prev) => ({
+        ...prev,
+        [key]: { status: prev[key]?.status ?? '', busy: false, error: 'Status not available for this order.' },
+      }));
+    }
+  };
 
   const courses = useApi(() => api.myCourses(), []);
   const orders = useApi(() => api.myOrders(), []);
@@ -59,7 +75,7 @@ export default function ProfileScreen() {
               <Text style={styles.muted}>API URL: {API_URL}</Text>
               <Text style={styles.muted}>Institute: {brand.instituteName} ({brand.orgCode})</Text>
               <Text style={styles.muted}>Theme: primary {brand.primaryColor}, accent {brand.accentColor}</Text>
-              <Text style={styles.muted}>App: {brand.appName} v3.0.0 (Phase 3)</Text>
+              <Text style={styles.muted}>App: {brand.appName} v3.0.0 (Phase 4)</Text>
             </Card>
             <PrimaryButton label="Log Out" onPress={doLogout} />
           </View>
@@ -86,13 +102,29 @@ export default function ProfileScreen() {
             {orders.loading ? <Loading label="Loading orders…" />
               : orders.error ? <ErrorBox message={orders.error} onRetry={orders.reload} />
               : toArray(orders.data).length === 0 ? <Empty message="No orders yet." />
-              : toArray(orders.data).map((o, i) => (
-                <Card key={o.id ?? i}>
-                  <Text style={styles.heading}>Order #{o.transaction_id ?? o.id}</Text>
-                  <Text style={styles.muted}>Amount: {inr(o.amount)} • Status: {o.status ?? '—'}</Text>
-                  {o.created_at ? <Text style={styles.muted}>{o.created_at}</Text> : null}
-                </Card>
-              ))}
+              : toArray(orders.data).map((o, i) => {
+                // Payment lookup is by Cashfree order id (TN-...), which the
+                // Order row carries as transaction_id — NOT the numeric row id.
+                const paymentOrderId = o.transaction_id ?? String(o.id);
+                const key = String(paymentOrderId);
+                const live = paymentStatus[key];
+                return (
+                  <Card key={o.id ?? i}>
+                    <Text style={styles.heading}>Order #{o.transaction_id ?? o.id}</Text>
+                    <Text style={styles.muted}>Amount: {inr(o.amount)} • Status: {o.status ?? '—'}</Text>
+                    {o.created_at ? <Text style={styles.muted}>{o.created_at}</Text> : null}
+                    {live?.status ? <Text style={[styles.muted, { fontWeight: '700' }]}>Payment status: {live.status}</Text> : null}
+                    {live?.error ? <Text style={styles.errorText}>{live.error}</Text> : null}
+                    <View style={{ marginTop: 10 }}>
+                      <PrimaryButton
+                        disabled={live?.busy}
+                        label={live?.busy ? 'Checking…' : 'Check Payment Status'}
+                        onPress={() => void checkPaymentStatus(paymentOrderId)}
+                      />
+                    </View>
+                  </Card>
+                );
+              })}
           </>
         )}
         {section === 'notifications' && (

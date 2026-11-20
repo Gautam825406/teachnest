@@ -1,20 +1,34 @@
 """Student-facing mobile API (Phase 3).
 
-Demo OTP auth: no real SMS. OTP is always "123456". Demo purchase creates a
-real SUCCESS Order with a DEMO- transaction id; no payment gateway involved.
+OTP auth: demo OTP "123456" when no SMS provider is configured. When
+MSG91_API_KEY is set the OTP is sent by MSG91 SMS (and verified against
+the stored OTP); Exotel SMS is used as a fallback provider when its
+credentials are set. Demo purchase creates a real SUCCESS Order with a
+DEMO- transaction id; real purchases go through Cashfree (Phase 4).
 All endpoints are tenant-scoped to the authenticated student's tenant.
 """
+import secrets
 import uuid
 from datetime import datetime, timedelta
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from jose import jwt
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from .. import config as cfg
 from ..config import ALGORITHM, SECRET_KEY
 from ..database import get_db
 from ..deps import get_current_student
+from .integrations import (
+    cashfree_configured,
+    create_cashfree_order,
+    fetch_cashfree_payments,
+    mark_paid_and_grant,
+    new_order_id,
+    txn_out,
+)
 from ..models import (
     Banner,
     Bundle,
@@ -26,6 +40,8 @@ from ..models import (
     Note,
     Notification,
     Order,
+    OtpUsage,
+    PaymentTransaction,
     PreviousPaper,
     Question,
     Score,
@@ -127,6 +143,15 @@ class EnquiryIn(BaseModel):
     enquiry_type_id: int | None = None
 
 
+class StudentCreateOrderIn(BaseModel):
+    item_type: str  # course|bundle
+    item_id: int
+
+
+class StudentVerifyIn(BaseModel):
+    order_id: str
+
+
 # ---------- Helpers ----------
 def _validate_phone(phone: str) -> str:
     if not isinstance(phone, str) or not phone.isdigit() or len(phone) != 10:
@@ -188,22 +213,73 @@ def _order_dict(order: Order) -> dict:
     return {**OrderOut.model_validate(order).model_dump(), "demo_purchase": True}
 
 
-# ---------- Auth (demo OTP, no real SMS) ----------
+def _send_otp_sms(phone: str, otp: str) -> str | None:
+    """Send `otp` by SMS. Returns the provider used, or None if no SMS
+    provider is configured. Raises on provider failure (caller falls back
+    to demo mode)."""
+    if cfg.msg91_api_key():
+        resp = httpx.get(
+            "https://api.msg91.com/api/v5/otp",
+            params={"authkey": cfg.msg91_api_key(), "mobile": f"91{phone}", "otp": otp},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return "msg91"
+    if cfg.exotel_sid() and (cfg.exotel_api_key() or cfg.exotel_token()):
+        # Exotel SMS API: POST /v1/Accounts/{sid}/Sms/send.json
+        resp = httpx.post(
+            f"https://api.exotel.com/v1/Accounts/{cfg.exotel_sid()}/Sms/send.json",
+            auth=(cfg.exotel_api_key(), cfg.exotel_token()),
+            data={"From": cfg.exotel_sid(), "To": f"91{phone}",
+                  "Body": f"Your TeachNest OTP is {otp}. Do not share it."},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return "exotel"
+    return None
+
+
+# ---------- Auth (OTP; demo when no SMS provider is configured) ----------
 @router.post("/auth/request-otp")
 def request_otp(payload: RequestOtpIn, db: Session = Depends(get_db)):
     tenant = _tenant_by_org_code(db, payload.org_code)
     _validate_phone(payload.phone)
-    return {
-        "demo_otp": DEMO_OTP,
-        "message": f"Demo mode: no real SMS sent. Use OTP {DEMO_OTP} to sign in to {tenant.name}.",
-    }
+    provider = cfg.sms_provider()
+    if provider is None:
+        return {
+            "demo": True,
+            "demo_otp": DEMO_OTP,
+            "message": f"Demo OTP — SMS not configured. Use OTP {DEMO_OTP} to sign in to {tenant.name}.",
+        }
+    otp = f"{secrets.randbelow(900000) + 100000:06d}"
+    try:
+        used = _send_otp_sms(payload.phone, otp)
+    except httpx.HTTPError:
+        return {
+            "demo": True,
+            "demo_otp": DEMO_OTP,
+            "message": f"SMS via {provider} failed — demo OTP {DEMO_OTP} issued instead.",
+        }
+    db.add(OtpUsage(tenant_id=tenant.id, otp=otp, mobile=payload.phone))
+    db.commit()
+    return {"demo": False, "message": f"OTP sent via SMS ({used}) to +91 {payload.phone}."}
 
 
 @router.post("/auth/verify")
 def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
     tenant = _tenant_by_org_code(db, payload.org_code)
     _validate_phone(payload.phone)
-    if payload.otp != DEMO_OTP:
+    if cfg.sms_provider() is not None:
+        # Real-SMS mode: accept the latest stored OTP for this mobile.
+        latest = (
+            db.query(OtpUsage)
+            .filter(OtpUsage.tenant_id == tenant.id, OtpUsage.mobile == payload.phone)
+            .order_by(OtpUsage.id.desc())
+            .first()
+        )
+        if latest is None or latest.otp != payload.otp:
+            raise HTTPException(status_code=400, detail="Invalid OTP")
+    elif payload.otp != DEMO_OTP:
         raise HTTPException(status_code=400, detail="Invalid OTP")
     student = (
         db.query(Student)
@@ -341,6 +417,114 @@ def my_orders(
 ):
     q = db.query(Order).filter(Order.tenant_id == student.tenant_id, Order.student_id == student.id)
     return _list(q, page, per_page, Order.id.desc())
+
+
+# ---------- Cashfree payments (Phase 4) ----------
+@router.post("/payments/create-order", status_code=201)
+def student_create_order(payload: StudentCreateOrderIn, student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+    if not cashfree_configured():
+        raise HTTPException(status_code=503, detail="Cashfree not configured")
+    item_type = payload.item_type.lower()
+    if item_type == "course":
+        item = db.query(Course).filter(Course.id == payload.item_id, Course.tenant_id == student.tenant_id).first()
+        if item is None:
+            raise HTTPException(status_code=404, detail="Course not found")
+        price = item.price
+    elif item_type == "bundle":
+        item = db.query(Bundle).filter(Bundle.id == payload.item_id, Bundle.tenant_id == student.tenant_id).first()
+        if item is None:
+            raise HTTPException(status_code=404, detail="Bundle not found")
+        price = item.price
+    else:
+        raise HTTPException(status_code=400, detail="item_type must be course|bundle")
+    if price is None or price <= 0:
+        raise HTTPException(status_code=400, detail="This item has no price set")
+    order_id = new_order_id(student.tenant_id)
+    txn = PaymentTransaction(
+        tenant_id=student.tenant_id,
+        order_id=order_id,
+        item_type=item_type,
+        item_id=payload.item_id,
+        student_id=student.id,
+        amount=int(round(price * 100)),
+        currency="INR",
+        status="PENDING",
+    )
+    db.add(txn)
+    db.commit()
+    db.refresh(txn)
+    cf = create_cashfree_order(order_id, price, customer_id=f"student-{student.id}", customer_phone=student.phone)
+    txn.cashfree_order_id = cf.get("cf_order_id") or cf.get("order_id") or ""
+    txn.payment_session_id = cf.get("payment_session_id") or ""
+    db.commit()
+    db.refresh(txn)
+    payment_link = cf.get("payment_link")
+    if not payment_link and isinstance(cf.get("payments"), dict):
+        payment_link = cf["payments"].get("url")
+    return {
+        "order_id": txn.order_id,
+        "cashfree_order_id": txn.cashfree_order_id,
+        "payment_session_id": txn.payment_session_id,
+        "payment_link": payment_link,
+        "amount": txn.amount,
+        "amount_rupees": price,
+        "status": txn.status,
+    }
+
+
+@router.post("/payments/verify")
+def student_verify_payment(payload: StudentVerifyIn, student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+    if not cashfree_configured():
+        raise HTTPException(status_code=503, detail="Cashfree not configured")
+    txn = (
+        db.query(PaymentTransaction)
+        .filter(
+            PaymentTransaction.tenant_id == student.tenant_id,
+            PaymentTransaction.order_id == payload.order_id,
+            PaymentTransaction.student_id == student.id,
+        )
+        .first()
+    )
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    if not txn.cashfree_order_id:
+        return {"order_id": txn.order_id, "status": txn.status}
+    payments = fetch_cashfree_payments(txn.cashfree_order_id)
+    paid = any(
+        str(p.get("payment_status") or p.get("paymentStatus") or "").upper() == "SUCCESS"
+        for p in payments
+        if isinstance(p, dict)
+    )
+    if paid:
+        mark_paid_and_grant(db, txn)
+    return {"order_id": txn.order_id, "status": txn.status, "payments_checked": len(payments)}
+
+
+@router.get("/payments/{order_id}")
+def student_get_payment(order_id: str, student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+    txn = (
+        db.query(PaymentTransaction)
+        .filter(
+            PaymentTransaction.tenant_id == student.tenant_id,
+            PaymentTransaction.order_id == order_id,
+            PaymentTransaction.student_id == student.id,
+        )
+        .first()
+    )
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    return txn_out(txn)
+
+
+@router.get("/live/config")
+def student_live_config(student: Student = Depends(get_current_student)):
+    """Student-scoped live-class config (Phase 4).
+
+    The admin /api/live/config requires an admin token, so students get
+    this endpoint instead. Same shape, no secrets, no fake join URL.
+    """
+    provider = cfg.live_provider()
+    return {"provider": provider, "configured": provider is not None, "join_url_template": None}
 
 
 # ---------- Content ----------

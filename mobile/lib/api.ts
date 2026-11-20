@@ -90,18 +90,69 @@ export interface Teacher { id: number; name: string; subject?: string | null; bi
 export interface Bundle { id: number; title?: string; name?: string; description?: string | null; price?: number | null; mrp?: number | null }
 export interface Order { id: number; transaction_id?: string | null; amount?: number; status?: string; created_at?: string | null; items?: unknown }
 
+// ---- Phase 4: Cashfree payments (no demo purchase path) ----
+export type PaymentItemType = 'course' | 'bundle';
+export interface PaymentOrder {
+  order_id: string | number;
+  cashfree_order_id?: string | null;
+  payment_session_id?: string | null;
+  payment_link?: string | null;
+  /** Amount in paise (backend stores paise) — do NOT display directly. */
+  amount?: number | null;
+  /** Amount in rupees — display this. */
+  amount_rupees?: number | null;
+  status?: string | null;
+}
+export interface PaymentVerification {
+  status: 'PAID' | 'PENDING' | 'FAILED' | string;
+  order_id?: string | number | null;
+  amount?: number | null;
+}
+export interface PaymentRecord {
+  order_id?: string | number | null;
+  cashfree_order_id?: string | null;
+  payment_session_id?: string | null;
+  payment_link?: string | null;
+  /** Amount in paise (backend stores paise) — do NOT display directly. */
+  amount?: number | null;
+  /** Amount in rupees — display this. */
+  amount_rupees?: number | null;
+  status?: string | null;
+  item_type?: string | null;
+  item_id?: number | string | null;
+  created_at?: string | null;
+}
+export interface LiveConfig {
+  provider?: string | null;
+  configured: boolean;
+}
+export interface OtpResponse {
+  demo_otp?: string | null;
+  /** True when the institute has not configured SMS and the OTP is a demo one. */
+  demo?: boolean;
+  message: string;
+}
+
 // ---- Endpoints ----
 export const api = {
   requestOtp: (org_code: string, phone: string) =>
-    post<{ demo_otp: string; message: string }>('/student/auth/request-otp', { org_code, phone }),
+    post<OtpResponse>('/student/auth/request-otp', { org_code, phone }),
   verifyOtp: (org_code: string, phone: string, otp: string, name?: string) =>
     post<{ access_token: string; token_type: string; student: Student }>('/student/auth/verify', { org_code, phone, otp, name }),
   me: () => get<Student>('/student/me'),
   home: () => get<HomeData>('/student/home'),
   courses: (page = 1, per_page = 20) => get<Paged<Course>>(`/student/courses?page=${page}&per_page=${per_page}`),
   course: (id: number | string) => get<Course>(`/student/courses/${id}`),
-  purchaseCourse: (id: number | string) =>
-    post<{ demo_purchase: boolean; status: string; transaction_id: string; amount: number; items: unknown }>(`/student/courses/${id}/purchase`),
+  // Phase 4 Cashfree purchase — replaces the Phase 3 demo purchase entirely.
+  // There is no demo/success path: if Cashfree is not configured the backend
+  // returns 503 and the caller must say so honestly (see course detail).
+  createPaymentOrder: (item_type: PaymentItemType, item_id: number | string) =>
+    post<PaymentOrder>('/student/payments/create-order', { item_type, item_id }),
+  verifyPayment: (order_id: number | string) =>
+    post<PaymentVerification>('/student/payments/verify', { order_id }),
+  getPayment: (order_id: number | string) =>
+    get<PaymentRecord>(`/student/payments/${order_id}`),
+  liveConfig: () => get<LiveConfig>('/student/live/config'),
   myCourses: () => get<Paged<Course> | Course[]>('/student/my-courses'),
   myOrders: () => get<Paged<Order> | Order[]>('/student/my-orders'),
   videos: () => get<Paged<ContentItem>>('/student/videos'),

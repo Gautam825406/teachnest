@@ -15,6 +15,7 @@ from .routers import (
     courses,
     dashboard,
     engagement,
+    integrations,
     orders,
     roles,
     settings,
@@ -35,7 +36,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="TeachNest API (Phase 3)", version="3.0.0", lifespan=lifespan)
+app = FastAPI(title="TeachNest API (Phase 4)", version="4.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,3 +79,5 @@ app.include_router(content.router, prefix="/api")
 app.include_router(engagement.router, prefix="/api")
 # Phase 3 (student mobile API)
 app.include_router(student.router, prefix="/api")
+# Phase 4 (Cashfree payments, AI, WhatsApp, push, live)
+app.include_router(integrations.router, prefix="/api")

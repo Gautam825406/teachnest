@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..config import cashfree_configured
+
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Course, Order, Student, Teacher, User
@@ -80,5 +82,5 @@ def stats(
         video_storage_limit_gb=1024.0,
         storage_plan="FREE",
         wallet_balance=0.0,
-        payment_gateway={"provider": "Razorpay", "status": "LINKED", "merchant_id": "SQIP****"},
+        payment_gateway={"provider": "Cashfree", "status": "LINKED" if cashfree_configured() else "NOT_CONFIGURED", "merchant_id": None},
     )

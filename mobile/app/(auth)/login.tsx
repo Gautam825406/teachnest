@@ -49,7 +49,7 @@ export default function LoginScreen() {
         <PrimaryButton disabled={busy} label={busy ? 'Sending OTP…' : 'Send OTP'} onPress={submit} />
       </View>
       <Text style={[styles.muted, { marginTop: 16 }]}>
-        Demo Mode: no SMS is sent. Your OTP is always 123456.
+        You will receive a 6-digit OTP on your mobile number.
       </Text>
     </ScrollView>
   );
