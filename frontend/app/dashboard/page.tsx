@@ -236,7 +236,7 @@ export default function DashboardPage() {
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Card className="p-4">
               <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">VIDEO STORAGE</p>
-              <p className="mt-2 text-[26px] font-semibold tabular-nums leading-8 text-stone-900 dark:text-stone-100">{storageMb.toLocaleString("en-IN")} MB <span className="text-base font-medium text-stone-500 dark:text-stone-400">of {(limitGb).toFixed(2)} TB</span></p>
+              <p className="mt-2 text-[26px] font-semibold tabular-nums leading-8 text-stone-900 dark:text-stone-100">{storageMb.toLocaleString("en-IN")}{" "}MB{" "}<span className="text-base font-medium text-stone-500 dark:text-stone-400">of{" "}{(limitGb).toFixed(2)}{" "}TB</span></p>
               <p className="mt-1 text-[13px] text-stone-500 dark:text-stone-400">Plan: {stats?.storage_plan || "FREE"} — {storagePct.toFixed(1)}% used</p>
               <div className="mt-3 h-2 w-full rounded-full bg-stone-200 dark:bg-stone-800">
                 <div className="h-2 rounded-full bg-brand-700" style={{ width: `${Math.max(storagePct, 1)}%` }} />
@@ -262,7 +262,7 @@ export default function DashboardPage() {
                 {gwStatus
                   ? cashfreeConfigured
                     ? `Cashfree is configured${cashfreeEnv ? ` (${cashfreeEnv})` : ""}. Student payments go through Cashfree.`
-                    : "Not configured — set CASHFREE_APP_ID / CASHFREE_SECRET_KEY in Render."
+                    : "Cashfree — Not configured. Add your Cashfree keys in the hosting dashboard to activate payments."
                   : "Live gateway status is unavailable right now — the backend integration-status endpoint did not respond."}
               </p>
               {gw?.merchant_id && <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Merchant ID: {gw.merchant_id}</p>}

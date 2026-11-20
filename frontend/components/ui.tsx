@@ -1,6 +1,30 @@
 "use client";
-import React, { useEffect } from "react";
-import { Inbox, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Inbox, Moon, Sun, X } from "lucide-react";
+
+export function ThemeToggle({ className = "" }: { className?: string }) {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const saved = localStorage.getItem("cw_theme");
+    setDark(saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }, []);
+  const toggle = () => {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("cw_theme", next ? "dark" : "light");
+  };
+  return (
+    <button
+      onClick={toggle}
+      className={`flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 ${className}`}
+      title="Toggle theme"
+      aria-label="Toggle theme"
+    >
+      {dark ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  );
+}
 
 export function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
   const { variant = "primary", className = "", ...rest } = props;

@@ -2,8 +2,16 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BookOpen } from "lucide-react";
 import { apiFetch, formatINR, type Course, type Paged } from "@/lib/api";
 import { BannerHeader, Badge, Button, Card, EmptyState, ErrorBox, Input, Loading, Select } from "@/components/ui";
+
+function courseInitials(title: string): string {
+  const parts = title.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "TN";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
 
 export default function CoursesPage() {
   const router = useRouter();
@@ -59,8 +67,8 @@ export default function CoursesPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Badge tone="indigo">TOTAL {total}</Badge>
         <Input placeholder="Search courses..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="max-w-xs" />
-        <label className="ml-auto flex items-center gap-2 text-sm">
-          Per page
+        <label className="ml-auto flex items-center gap-2 whitespace-nowrap text-sm">
+          <span className="shrink-0">Per page</span>
           <Select value={String(perPage)} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }} className="w-20">
             <option value="9">9</option><option value="12">12</option><option value="18">18</option><option value="36">36</option>
           </Select>
@@ -74,8 +82,9 @@ export default function CoursesPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((c) => (
               <Card key={String(c.id)} className="overflow-hidden">
-                <div className="flex h-36 items-center justify-center bg-brand-700 text-sm font-medium text-white">
-                  {c.thumbnail_url ? c.thumbnail_url : "Course Thumbnail"}
+                <div className="flex h-36 flex-col items-center justify-center gap-2 bg-brand-700">
+                  <BookOpen size={22} className="text-white/70" aria-hidden />
+                  <span className="text-lg font-semibold tracking-tight text-white">{courseInitials(c.title)}</span>
                 </div>
                 <div className="p-4">
                   <h3 className="font-bold">{c.title}</h3>

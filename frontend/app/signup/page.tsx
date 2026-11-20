@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, saveAuth, ApiError } from "@/lib/api";
-import { Button, ErrorBox, Field, Input } from "@/components/ui";
+import { Button, ErrorBox, Field, Input, ThemeToggle } from "@/components/ui";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -33,11 +33,14 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4 dark:bg-stone-950">
+    <div className="relative flex min-h-screen items-center justify-center bg-stone-50 px-4 dark:bg-stone-950">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm rounded-xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
         <div className="flex items-center justify-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-white">T</span>
-          <p className="text-lg font-bold tracking-tight text-brand-700 dark:text-brand-300">TeachNest</p>
+          <p className="text-lg font-bold tracking-tight text-brand-700 dark:text-stone-100">TeachNest</p>
         </div>
         <h1 className="mt-6 text-lg font-semibold tracking-tight">Create your institute account</h1>
         <p className="mt-1 text-sm text-stone-500">Your institute becomes a tenant and you become its Super Admin.</p>

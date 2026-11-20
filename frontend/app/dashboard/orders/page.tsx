@@ -170,8 +170,8 @@ export default function OrdersPage() {
             <option value="FAILED">FAILED</option>
             <option value="REFUNDED">REFUNDED</option>
           </Select>
-          <label className="ml-auto flex items-center gap-2 text-sm">
-            Per page
+          <label className="ml-auto flex items-center gap-2 whitespace-nowrap text-sm">
+            <span className="shrink-0">Per page</span>
             <Select value={String(perPage)} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }} className="w-20">
               <option value="10">10</option><option value="100">100</option><option value="500">500</option><option value="1000">1000</option>
             </Select>

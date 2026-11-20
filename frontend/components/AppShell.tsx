@@ -157,7 +157,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <GraduationCap size={18} className="text-white" />
           </span>
           <span className="leading-tight">
-            <span className="block text-[15px] font-semibold tracking-tight text-stone-900 dark:text-stone-100">TeachNest</span>
+            <span className="block text-[15px] font-semibold tracking-tight text-brand-700 dark:text-stone-100">TeachNest</span>
             <span className="block text-[11px] text-stone-500 dark:text-stone-400">Admin</span>
           </span>
         </Link>
@@ -250,7 +250,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700">
               <GraduationCap size={18} className="text-white" />
             </span>
-            <span className="text-[15px] font-semibold tracking-tight text-stone-900 dark:text-stone-100">TeachNest</span>
+            <span className="text-[15px] font-semibold tracking-tight text-brand-700 dark:text-stone-100">TeachNest</span>
           </Link>
           <button
             onClick={openPalette}
