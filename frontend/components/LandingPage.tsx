@@ -24,6 +24,12 @@ import { Button, ThemeToggle } from "@/components/ui";
 import { CountUp, Reveal, useInView } from "@/components/motion";
 import { getToken } from "@/lib/api";
 
+/** Student Android app (APK) download link shown in the footer.
+ *  Updated whenever a new EAS preview build is published (currently v3.0.0;
+ *  v3.1.0 with the new UI + Doubt Engine replaces this link when it lands). */
+const ANDROID_APK_URL =
+  "https://expo.dev/artifacts/eas/TvuGGsPtyhDyJwULgRtgwCEg6jEPz3xJC1Z4AgChi7Q.apk";
+
 /** Shared hover micro-interaction for landing-page buttons. */
 const BTN_HOVER = "duration-300 ease-out hover:scale-[1.02] hover:shadow-md active:scale-[0.98]";
 /** Shared hover lift for landing-page cards. */
@@ -628,6 +634,15 @@ export default function LandingPage() {
               <p className="mt-4 flex items-center gap-2 text-[13px] text-stone-500 dark:text-stone-400">
                 <MessageSquare size={14} aria-hidden /> Made for coaching institutes in India
               </p>
+              <a
+                href={ANDROID_APK_URL}
+                className={`mt-5 inline-flex items-center gap-2 rounded-xl bg-[#312e81] px-4 py-2.5 text-sm font-semibold text-white ${BTN_HOVER}`}
+              >
+                <Smartphone size={16} aria-hidden /> Download Android app (APK)
+              </a>
+              <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+                For students — install directly, no Play Store needed. v3.0.0, ~65 MB.
+              </p>
             </div>
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">Product</p>
@@ -637,6 +652,7 @@ export default function LandingPage() {
                   { label: "How it works", href: "#how-it-works" },
                   { label: "Pricing", href: "#pricing" },
                   { label: "FAQ", href: "#faq" },
+                  { label: "Android app (APK)", href: ANDROID_APK_URL },
                 ].map((l) => (
                   <li key={l.label}>
                     <a href={l.href} className="text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
