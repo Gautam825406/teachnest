@@ -128,10 +128,14 @@ on `http://localhost:8000/api`.
 
 ## Demo login credentials (seeded demo data — clearly labelled demo)
 
-| Tenant | Org code | Username | Password |
-|---|---|---|---|
-| Demo Academy | DEMO0001 | `admin` | `Admin@123` |
-| Second Academy (tenant-isolation check only) | SECN0002 | `secondadmin` | `Second@123` |
+On the login page, use **Try demo as Super Admin** or **Try demo as Teacher**
+for one-click demo login — no signup needed. Or log in manually with:
+
+| Tenant | Org code | Username | Password | Role |
+|---|---|---|---|---|
+| Demo Academy | DEMO0001 | `admin` | `Admin@123` | Super Admin |
+| Demo Academy | DEMO0001 | `teacher1` | `Teacher@123` | Teacher |
+| Second Academy (tenant-isolation check only) | SECN0002 | `secondadmin` | `Second@123` | Super Admin |
 
 Demo Academy seed: 5 courses (incl. "Hindi Class 12"), 2 course categories +
 3 subcategories, 1 teacher, 8 students, 5 orders (4 SUCCESS totalling ₹6,996
