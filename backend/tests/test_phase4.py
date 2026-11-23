@@ -150,7 +150,7 @@ def test_ai_generate_without_groq_key_503(client, admin_headers, monkeypatch):
                           "question_types": "mcq", "text": "Linear equations in one variable."},
                     headers=admin_headers)
     assert r.status_code == 503, r.text
-    assert r.json()["detail"] == "AI not configured"
+    assert r.json()["detail"] == "AI not configured — add a groq API key in Integrations"
 
 
 def test_ai_generations_list_empty_ok(client, admin_headers):

@@ -1,11 +1,15 @@
 """Phase 4: Integrations & AI.
 
-Cashfree (NOT Razorpay) for payments, Groq for AI question generation,
-Meta WhatsApp Cloud API, Firebase Cloud Messaging push, 100ms/Agora live
-config (status only — no fake join URLs).
+Cashfree (NOT Razorpay) for payments, Groq / Gemini for AI question
+generation, Meta WhatsApp Cloud API, Firebase Cloud Messaging push,
+100ms/Agora live config (status only — no fake join URLs).
 
-All secrets come from env vars only; no secret value is ever returned,
-logged, or stored. Status endpoints report only `configured` booleans.
+AI provider keys (Groq, Gemini) can be saved from the admin panel
+(Integrations → AI API Keys): they are stored Fernet-encrypted per tenant
+(see provider_keys.py) and take precedence over the GROQ_API_KEY /
+GEMINI_API_KEY environment variables. No secret value is ever returned,
+logged, or stored in plaintext. Status endpoints report only
+`configured` booleans and masked previews.
 """
 import base64
 import hashlib
@@ -30,10 +34,17 @@ from ..models import (
     IntegrationLog,
     Order,
     PaymentTransaction,
+    ProviderCredential,
     Question,
     Student,
     TestSeries,
     User,
+)
+from ..provider_keys import (
+    AI_PROVIDERS,
+    encrypt_value,
+    provider_key_status,
+    resolve_provider_key,
 )
 from ..schemas import AIGenerationOut, IntegrationLogOut, PaymentTransactionOut
 
@@ -41,6 +52,8 @@ router = APIRouter(tags=["phase4-integrations"])
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 WHATSAPP_TEMPLATES = {"teachnest_enrolment", "teachnest_payment_receipt", "teachnest_test_reminder"}
 WHATSAPP_API_VERSION = "v21.0"
 MAX_AI_QUESTIONS = 20
@@ -224,17 +237,104 @@ def verify_cashfree_signature(secret: str, timestamp: str, raw_body: bytes, sign
 # ---------- 1. Status ----------
 @router.get("/integrations/status")
 def integrations_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    _ = db
     live = cfg.live_provider()
     sms = cfg.sms_provider()
     return {
         "cashfree": {"configured": cashfree_configured(), "env": cfg.cashfree_env()},
-        "groq": {"configured": bool(cfg.groq_api_key())},
+        "groq": {"configured": bool(resolve_provider_key(db, user.tenant_id, "groq"))},
+        "gemini": {"configured": bool(resolve_provider_key(db, user.tenant_id, "gemini"))},
         "whatsapp": {"configured": bool(cfg.whatsapp_token() and cfg.whatsapp_phone_number_id())},
         "live": {"provider": live, "configured": live is not None},
         "fcm": {"configured": bool(cfg.firebase_service_account_json())},
         "sms": {"provider": sms, "configured": sms is not None},
     }
+
+
+# ---------- 1b. AI provider keys (admin panel) ----------
+def _require_admin(user: User) -> None:
+    if (user.role or "") not in ("Super Admin", "Admin"):
+        raise HTTPException(status_code=403, detail="Only an admin can manage API keys")
+
+
+def _validate_provider(provider: str) -> str:
+    provider = (provider or "").lower()
+    if provider not in AI_PROVIDERS:
+        raise HTTPException(status_code=400, detail="provider must be groq|gemini")
+    return provider
+
+
+class ApiKeyIn(BaseModel):
+    api_key: str
+
+
+@router.get("/integrations/api-keys")
+def list_api_keys(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(user)
+    return {"keys": [provider_key_status(db, user.tenant_id, p) for p in AI_PROVIDERS]}
+
+
+@router.put("/integrations/api-keys/{provider}")
+def save_api_key(provider: str, payload: ApiKeyIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(user)
+    provider = _validate_provider(provider)
+    key = (payload.api_key or "").strip()
+    if len(key) < 10:
+        raise HTTPException(status_code=400, detail="API key looks too short — paste the full key")
+    row = (
+        db.query(ProviderCredential)
+        .filter(ProviderCredential.tenant_id == user.tenant_id, ProviderCredential.provider == provider)
+        .first()
+    )
+    if row is None:
+        row = ProviderCredential(tenant_id=user.tenant_id, provider=provider, encrypted_value="")
+        db.add(row)
+    row.encrypted_value = encrypt_value(key)
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(row)
+    return provider_key_status(db, user.tenant_id, provider)
+
+
+@router.delete("/integrations/api-keys/{provider}")
+def delete_api_key(provider: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(user)
+    provider = _validate_provider(provider)
+    row = (
+        db.query(ProviderCredential)
+        .filter(ProviderCredential.tenant_id == user.tenant_id, ProviderCredential.provider == provider)
+        .first()
+    )
+    if row is not None:
+        db.delete(row)
+        db.commit()
+    return provider_key_status(db, user.tenant_id, provider)
+
+
+@router.post("/integrations/api-keys/{provider}/test")
+def test_api_key(provider: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Live check: calls the provider with the saved (or env) key and
+    reports ok/invalid without ever returning the key itself."""
+    _require_admin(user)
+    provider = _validate_provider(provider)
+    key = resolve_provider_key(db, user.tenant_id, provider)
+    if not key:
+        raise HTTPException(status_code=503, detail=f"No {provider} API key configured")
+    try:
+        if provider == "groq":
+            resp = httpx.get(
+                "https://api.groq.com/openai/v1/models",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=30,
+            )
+        else:
+            resp = httpx.get(f"{GEMINI_MODELS_URL}?key={key}", timeout=30)
+    except Exception as exc:  # HTTPError + InvalidURL/proxy/DNS/SSL failures
+        return {"provider": provider, "ok": False, "message": f"Could not reach {provider}: {exc}"}
+    if resp.status_code == 200:
+        return {"provider": provider, "ok": True, "message": f"{provider} key works."}
+    if resp.status_code in (401, 403):
+        return {"provider": provider, "ok": False, "message": f"{provider} rejected the key (invalid or expired). Paste a fresh key and save again."}
+    return {"provider": provider, "ok": False, "message": f"{provider} returned HTTP {resp.status_code}."}
 
 
 # ---------- 2. Cashfree payments (admin) ----------
@@ -437,6 +537,65 @@ def _normalise_questions(raw: object, count: int, question_types: str) -> list[d
     return out
 
 
+def _call_groq(api_key: str, prompt: str) -> str:
+    """Returns the raw JSON text from Groq chat completions."""
+    try:
+        resp = httpx.post(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": GROQ_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You generate exam questions. Always return valid JSON only, no markdown, no commentary."},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.7,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=120,
+        )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Groq request failed: {exc}")
+    except Exception as exc:  # proxy/DNS/SSL failures (e.g. InvalidURL) → clean 502, not 500
+        raise HTTPException(status_code=502, detail=f"Groq request failed: {exc}")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Groq request failed ({resp.status_code})")
+    try:
+        return resp.json()["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise HTTPException(status_code=502, detail="Groq returned an unreadable response")
+
+
+def _call_gemini(api_key: str, prompt: str) -> str:
+    """Returns the raw JSON text from Gemini generateContent."""
+    try:
+        resp = httpx.post(
+            f"{GEMINI_URL}?key={api_key}",
+            headers={"Content-Type": "application/json"},
+            json={
+                "contents": [{"parts": [{"text": prompt + "\nReturn valid JSON only, no markdown fences, no commentary."}]}],
+                "generationConfig": {"temperature": 0.7, "responseMimeType": "application/json"},
+            },
+            timeout=120,
+        )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Gemini request failed: {exc}")
+    except Exception as exc:  # proxy/DNS/SSL failures (e.g. InvalidURL) → clean 502, not 500
+        raise HTTPException(status_code=502, detail=f"Gemini request failed: {exc}")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Gemini request failed ({resp.status_code})")
+    try:
+        text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError, TypeError):
+        raise HTTPException(status_code=502, detail="Gemini returned an unreadable response")
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`").strip()
+        if text.lower().startswith("json"):
+            text = text[4:].strip()
+    return text
+
+
 @router.post("/ai/generate-questions", status_code=201)
 async def ai_generate_questions(
     file: UploadFile | None = File(None),
@@ -446,11 +605,14 @@ async def ai_generate_questions(
     difficulty: str = Form("medium"),
     count: int = Form(5),
     question_types: str = Form("mcq"),
+    provider: str = Form("groq"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not cfg.groq_api_key():
-        raise HTTPException(status_code=503, detail="AI not configured")
+    provider = _validate_provider(provider)
+    api_key = resolve_provider_key(db, user.tenant_id, provider)
+    if not api_key:
+        raise HTTPException(status_code=503, detail=f"AI not configured — add a {provider} API key in Integrations")
     if count < 1 or count > MAX_AI_QUESTIONS:
         raise HTTPException(status_code=400, detail=f"count must be between 1 and {MAX_AI_QUESTIONS}")
     if question_types not in ("mcq", "short"):
@@ -479,33 +641,14 @@ async def ai_generate_questions(
         f"on the topic '{topic or 'the provided material'}' at {difficulty} difficulty. "
         f"Source material:\n{source_text}\n{fmt}"
     )
+    content = _call_groq(api_key, prompt) if provider == "groq" else _call_gemini(api_key, prompt)
     try:
-        resp = httpx.post(
-            GROQ_URL,
-            headers={"Authorization": f"Bearer {cfg.groq_api_key()}", "Content-Type": "application/json"},
-            json={
-                "model": GROQ_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You generate exam questions. Always return valid JSON only, no markdown, no commentary."},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.7,
-                "response_format": {"type": "json_object"},
-            },
-            timeout=120,
-        )
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Groq request failed: {exc}")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Groq request failed ({resp.status_code})")
-    try:
-        content = resp.json()["choices"][0]["message"]["content"]
         parsed = json.loads(content)
-    except (KeyError, IndexError, ValueError, TypeError):
-        raise HTTPException(status_code=502, detail="Groq returned an unreadable response")
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=502, detail=f"{provider} returned an unreadable response")
     questions = _normalise_questions(parsed, count, question_types)
     if not questions:
-        raise HTTPException(status_code=502, detail="Groq returned no usable questions")
+        raise HTTPException(status_code=502, detail=f"{provider} returned no usable questions")
     gen = AIGeneration(
         tenant_id=user.tenant_id,
         source_filename=source_filename,
@@ -519,7 +662,7 @@ async def ai_generate_questions(
     db.add(gen)
     db.commit()
     db.refresh(gen)
-    return {"generation_id": gen.id, "questions": questions, "status": "draft"}
+    return {"generation_id": gen.id, "questions": questions, "status": "draft", "provider": provider}
 
 
 class SaveQuestionsIn(BaseModel):

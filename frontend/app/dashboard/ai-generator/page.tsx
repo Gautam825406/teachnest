@@ -13,6 +13,10 @@ const QUESTION_TYPES = [
   { value: "mcq", label: "MCQ (4 options)" },
   { value: "short", label: "Short answer" },
 ];
+const AI_PROVIDERS = [
+  { value: "groq", label: "Groq (llama-3.3-70b)" },
+  { value: "gemini", label: "Gemini (gemini-2.0-flash)" },
+];
 const ACCEPTED = ".pdf,.txt,.xlsx,.csv,.docx,.png,.jpg,.jpeg,.webp";
 
 interface EditableQuestion extends AiDraftQuestion {
@@ -70,6 +74,7 @@ export default function AiGeneratorPage() {
   const [difficulty, setDifficulty] = useState("medium");
   const [count, setCount] = useState("10");
   const [questionType, setQuestionType] = useState("mcq");
+  const [provider, setProvider] = useState("groq");
 
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -85,7 +90,7 @@ export default function AiGeneratorPage() {
     setStatusLoading(true);
     try {
       const s = await integrationsStatusApi.get();
-      setAiConfigured(s.groq?.configured === true);
+      setAiConfigured(s.groq?.configured === true || s.gemini?.configured === true);
     } catch {
       setAiConfigured(null);
     } finally { setStatusLoading(false); }
@@ -122,6 +127,7 @@ export default function AiGeneratorPage() {
       form.append("difficulty", difficulty);
       form.append("count", count);
       form.append("question_types", questionType);
+      form.append("provider", provider);
       const res = await aiGeneratorApi.generate(form);
       const id = String(res.generation_id ?? res.id ?? "");
       setGenerationId(id || null);
@@ -133,8 +139,8 @@ export default function AiGeneratorPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not generate questions.";
       setGenError(
-        /groq|not configured|api key/i.test(msg)
-          ? "AI not configured — set GROQ_API_KEY in Render, then try again."
+        /groq|gemini|not configured|api key/i.test(msg)
+          ? "AI not configured — add a Groq or Gemini key in Integrations → AI API Keys, then try again."
           : msg
       );
     } finally { setGenerating(false); }
@@ -184,11 +190,11 @@ export default function AiGeneratorPage() {
         <Loading label="Checking AI status..." />
       ) : aiConfigured === false ? (
         <Card className="mb-6 border-amber-200 bg-amber-50 p-5 dark:border-amber-900 dark:bg-amber-950">
-          <p className="text-lg font-bold">AI not configured — set GROQ_API_KEY</p>
+          <p className="text-lg font-bold">AI not configured — add a Groq or Gemini key</p>
           <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
-            The AI Question Paper Generator needs a Groq API key. Set <code className="font-mono">GROQ_API_KEY</code> in
-            the backend environment variables on Render and restart the backend. No questions are generated until then —
-            nothing on this page is faked.
+            The AI Question Paper Generator needs a Groq or Gemini API key. Add one in{" "}
+            <Link href="/dashboard/integrations" className="font-semibold text-brand-700 underline dark:text-brand-300">Integrations → AI API Keys</Link>{" "}
+            — no Render change needed. No questions are generated until then — nothing on this page is faked.
           </p>
           <div className="mt-4">
             <Link href="/dashboard/integrations"><Button variant="secondary">Check Integrations Status</Button></Link>
@@ -229,6 +235,11 @@ export default function AiGeneratorPage() {
             <Field label="Question type" required>
               <Select value={questionType} onChange={(e) => setQuestionType(e.target.value)} required>
                 {QUESTION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </Select>
+            </Field>
+            <Field label="AI provider" required hint="Uses the key saved in Integrations → AI API Keys.">
+              <Select value={provider} onChange={(e) => setProvider(e.target.value)} required>
+                {AI_PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
               </Select>
             </Field>
           </div>

@@ -503,12 +503,37 @@ export const toppersCallListApi = {
 export interface IntegrationStatus {
   cashfree?: { configured?: boolean; env?: string };
   groq?: { configured?: boolean };
+  gemini?: { configured?: boolean };
   whatsapp?: { configured?: boolean };
   live?: { provider?: string; configured?: boolean };
   fcm?: { configured?: boolean };
   sms?: { provider?: string; configured?: boolean };
   [key: string]: unknown;
 }
+
+export interface ApiKeyStatus {
+  provider: string;
+  configured: boolean;
+  source: "admin_panel" | "env" | "none";
+  masked: string;
+  updated_at?: string | null;
+}
+
+export const apiKeysApi = {
+  list: () => apiFetch<{ keys: ApiKeyStatus[] }>("/integrations/api-keys"),
+  save: (provider: string, apiKey: string) =>
+    apiFetch<ApiKeyStatus>(`/integrations/api-keys/${provider}`, {
+      method: "PUT",
+      body: JSON.stringify({ api_key: apiKey }),
+    }),
+  remove: (provider: string) =>
+    apiFetch<ApiKeyStatus>(`/integrations/api-keys/${provider}`, { method: "DELETE" }),
+  test: (provider: string) =>
+    apiFetch<{ provider: string; ok: boolean; message: string }>(`/integrations/api-keys/${provider}/test`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+};
 
 export interface PaymentOrder {
   order_id?: number | string;

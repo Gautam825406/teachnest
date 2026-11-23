@@ -530,6 +530,21 @@ class PaymentTransaction(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class ProviderCredential(Base):
+    """Per-tenant AI provider key, Fernet-encrypted (see provider_keys.py).
+
+    One row per (tenant_id, provider); provider is "groq" or "gemini".
+    The raw key is never stored — only the encrypted value.
+    """
+    __tablename__ = "provider_credentials"
+    __table_args__ = (UniqueConstraint("tenant_id", "provider", name="uq_provider_credential"),)
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    provider = Column(String(50), nullable=False, index=True)
+    encrypted_value = Column(Text, default="", nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class AIGeneration(Base):
     __tablename__ = "ai_generations"
     id = Column(Integer, primary_key=True, index=True)

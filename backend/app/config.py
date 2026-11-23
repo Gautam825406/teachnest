@@ -18,6 +18,7 @@ CASHFREE_APP_ID = os.environ.get("CASHFREE_APP_ID", "")
 CASHFREE_SECRET_KEY = os.environ.get("CASHFREE_SECRET_KEY", "")
 CASHFREE_ENV = os.environ.get("CASHFREE_ENV", "SANDBOX").upper()
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
 HMS_API_KEY = os.environ.get("HMS_API_KEY", "")
@@ -51,6 +52,10 @@ def cashfree_env() -> str:
 
 def groq_api_key() -> str:
     return _env("GROQ_API_KEY")
+
+
+def gemini_api_key() -> str:
+    return _env("GEMINI_API_KEY")
 
 
 def whatsapp_token() -> str:
