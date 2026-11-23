@@ -51,7 +51,7 @@ from ..schemas import AIGenerationOut, IntegrationLogOut, PaymentTransactionOut
 router = APIRouter(tags=["phase4-integrations"])
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"  # llama-3.3-70b-versatile was shut down by Groq on 16 Aug 2026
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 WHATSAPP_TEMPLATES = {"teachnest_enrolment", "teachnest_payment_receipt", "teachnest_test_reminder"}

@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { aiGeneratorApi, asList, integrationsStatusApi, testSeriesApi, type AiDraftQuestion, type AiGeneration, type TestSeries } from "@/lib/api";
+import { aiGeneratorApi, apiKeysApi, asList, integrationsStatusApi, testSeriesApi, type AiDraftQuestion, type AiGeneration, type TestSeries } from "@/lib/api";
 import { Badge, BannerHeader, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Select, Textarea } from "@/components/ui";
 
 const DIFFICULTIES = [
@@ -14,7 +14,7 @@ const QUESTION_TYPES = [
   { value: "short", label: "Short answer" },
 ];
 const AI_PROVIDERS = [
-  { value: "groq", label: "Groq (llama-3.3-70b)" },
+  { value: "groq", label: "Groq (gpt-oss-120b)" },
   { value: "gemini", label: "Gemini (gemini-2.0-flash)" },
 ];
 const ACCEPTED = ".pdf,.txt,.xlsx,.csv,.docx,.png,.jpg,.jpeg,.webp";
@@ -75,6 +75,7 @@ export default function AiGeneratorPage() {
   const [count, setCount] = useState("10");
   const [questionType, setQuestionType] = useState("mcq");
   const [provider, setProvider] = useState("groq");
+  const [providerConfigured, setProviderConfigured] = useState<Record<string, boolean> | null>(null);
 
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -88,12 +89,24 @@ export default function AiGeneratorPage() {
 
   const load = useCallback(async () => {
     setStatusLoading(true);
+    let configured: Record<string, boolean> | null = null;
     try {
       const s = await integrationsStatusApi.get();
-      setAiConfigured(s.groq?.configured === true || s.gemini?.configured === true);
+      configured = { groq: s.groq?.configured === true, gemini: s.gemini?.configured === true };
+      setAiConfigured(configured.groq || configured.gemini);
     } catch {
       setAiConfigured(null);
     } finally { setStatusLoading(false); }
+    // Per-provider key status (admin only; teachers fall back to the status above).
+    try {
+      const data = await apiKeysApi.list();
+      configured = Object.fromEntries((data.keys || []).map((k) => [k.provider, k.configured === true]));
+    } catch { /* keep the status-based values */ }
+    if (configured) {
+      setProviderConfigured(configured);
+      // If the currently picked provider has no key but the other one does, switch.
+      setProvider((prev) => (configured?.[prev] === false && configured?.[prev === "groq" ? "gemini" : "groq"] === true ? (prev === "groq" ? "gemini" : "groq") : prev));
+    }
     try {
       const data = await testSeriesApi.list("?per_page=100");
       const { items } = asList(data as never);
@@ -137,12 +150,8 @@ export default function AiGeneratorPage() {
       }
       setDrafts(qs.map(toEditable));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not generate questions.";
-      setGenError(
-        /groq|gemini|not configured|api key/i.test(msg)
-          ? "AI not configured — add a Groq or Gemini key in Integrations → AI API Keys, then try again."
-          : msg
-      );
+      // Show the backend's message as-is: it names the provider that is missing a key.
+      setGenError(err instanceof Error ? err.message : "Could not generate questions.");
     } finally { setGenerating(false); }
   }
 
@@ -237,9 +246,13 @@ export default function AiGeneratorPage() {
                 {QUESTION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </Select>
             </Field>
-            <Field label="AI provider" required hint="Uses the key saved in Integrations → AI API Keys.">
+            <Field label="AI provider" required hint={providerConfigured && providerConfigured[provider] === false ? "This provider has no key — add one in Integrations → AI API Keys, or pick the other provider." : "Uses the key saved in Integrations → AI API Keys."}>
               <Select value={provider} onChange={(e) => setProvider(e.target.value)} required>
-                {AI_PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                {AI_PROVIDERS.map((p) => (
+                  <option key={p.value} value={p.value} disabled={providerConfigured?.[p.value] === false}>
+                    {p.label}{providerConfigured?.[p.value] === false ? " — no key" : ""}
+                  </option>
+                ))}
               </Select>
             </Field>
           </div>

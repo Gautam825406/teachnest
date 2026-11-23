@@ -150,9 +150,17 @@ def test_generate_uses_saved_groq_key(client, admin_headers, monkeypatch):
     assert r.status_code == 503
 
     client.put("/api/integrations/api-keys/groq", json={"api_key": "gsk_testkey1234567890"}, headers=admin_headers)
-    monkeypatch.setattr(integ.httpx, "post", _groq_ok)
+    seen: dict = {}
+
+    def _groq_ok_capture(*args, **kwargs):
+        seen["model"] = kwargs.get("json", {}).get("model")
+        return _groq_ok(*args, **kwargs)
+
+    monkeypatch.setattr(integ.httpx, "post", _groq_ok_capture)
     r = client.post("/api/ai/generate-questions", data={"topic": "Maths", "count": 1}, headers=admin_headers)
     assert r.status_code == 201, r.text
+    # llama-3.3-70b-versatile was shut down by Groq on 16 Aug 2026.
+    assert seen["model"] == "openai/gpt-oss-120b"
     assert r.json()["questions"][0]["question"] == "What is 2+2?"
     assert r.json()["provider"] == "groq"
 

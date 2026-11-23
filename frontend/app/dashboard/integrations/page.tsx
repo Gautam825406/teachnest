@@ -90,7 +90,7 @@ const AI_KEY_PROVIDERS = [
   {
     key: "groq",
     name: "Groq",
-    hint: "Get a key at console.groq.com → API Keys (starts with gsk_). Model: llama-3.3-70b-versatile.",
+    hint: "Get a key at console.groq.com → API Keys (starts with gsk_). Model: openai/gpt-oss-120b.",
     keyUrl: "https://console.groq.com/keys",
   },
   {

@@ -224,7 +224,7 @@ API responses also include `amount_rupees`.
   `{item_type: course|bundle, item_id}` (price taken from the course/bundle),
   `POST /api/student/payments/verify {order_id}` (server-side Cashfree
   verify → `PAID` + enrolment), `GET /api/student/payments/{order_id}`.
-- AI questions (Groq `llama-3.3-70b-versatile`, strict JSON output):
+- AI questions (Groq `openai/gpt-oss-120b` or Gemini `gemini-2.0-flash`, strict JSON output):
   `POST /api/ai/generate-questions` (multipart: `file` pdf/txt/xlsx/csv/docx/
   image, or `text` field; `topic`, `class_name`, `difficulty`, `count` ≤ 20,
   `question_types` mcq|short) → draft questions + `generation_id` stored as
