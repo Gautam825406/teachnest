@@ -19,6 +19,7 @@ from .routers import (
     engagement,
     integrations,
     orders,
+    platform,
     roles,
     settings,
     student,
@@ -86,3 +87,5 @@ app.include_router(student.router, prefix="/api")
 app.include_router(integrations.router, prefix="/api")
 # Doubt Engine (students ask, AI + teacher answer)
 app.include_router(doubts.router, prefix="/api")
+# Platform (Super Admin) panel
+app.include_router(platform.router, prefix="/api")

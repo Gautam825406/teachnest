@@ -22,5 +22,17 @@ def create_access_token(*, user_id: int, tenant_id: int, username: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def create_platform_token(*, username: str) -> str:
+    """JWT for the platform (super) admin.
+
+    sub is the literal "platform_admin" (never numeric) and role is
+    "platform_admin", so tenant-admin and student token checks reject it
+    and get_platform_admin rejects theirs.
+    """
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload = {"sub": "platform_admin", "role": "platform_admin", "username": username, "exp": expire}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
 def decode_token(token: str) -> dict:
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

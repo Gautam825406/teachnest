@@ -25,13 +25,13 @@ from ..database import get_db
 from ..deps import get_current_student
 from ..security import hash_password, verify_password
 from .integrations import (
-    cashfree_configured,
     create_cashfree_order,
     fetch_cashfree_payments,
     mark_paid_and_grant,
     new_order_id,
     txn_out,
 )
+from ..tenant_cashfree import resolve_tenant_cashfree
 from ..models import (
     Banner,
     Bundle,
@@ -185,6 +185,13 @@ def _tenant_by_org_code(db: Session, org_code: str) -> Tenant:
     return tenant
 
 
+def _require_not_suspended(tenant: Tenant) -> None:
+    """Suspension is enforced at login only: existing student sessions
+    are NOT revoked — JWTs are stateless and stay valid until they expire."""
+    if tenant.suspended:
+        raise HTTPException(status_code=403, detail="Institute suspended")
+
+
 def _course_list(db: Session, tenant_id: int, course_ids: list) -> list:
     if not course_ids:
         return []
@@ -287,6 +294,7 @@ def request_otp(payload: RequestOtpIn, db: Session = Depends(get_db)):
 @router.post("/auth/verify")
 def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
     tenant = _tenant_by_org_code(db, payload.org_code)
+    _require_not_suspended(tenant)
     _validate_phone(payload.phone)
     if cfg.sms_provider() is not None:
         # Real-SMS mode: accept the latest stored OTP for this mobile.
@@ -325,6 +333,7 @@ def register_password(payload: RegisterIn, db: Session = Depends(get_db)):
     """Create a student account with a password — no OTP. Returns the same
     token shape as OTP verify, so the app logs the student in directly."""
     tenant = _tenant_by_org_code(db, payload.org_code)
+    _require_not_suspended(tenant)
     _validate_phone(payload.phone)
     name = (payload.name or "").strip()
     if not name:
@@ -361,6 +370,7 @@ def register_password(payload: RegisterIn, db: Session = Depends(get_db)):
 def login_password(payload: PasswordLoginIn, db: Session = Depends(get_db)):
     """Log in a registered student with a password (no OTP)."""
     tenant = _tenant_by_org_code(db, payload.org_code)
+    _require_not_suspended(tenant)
     _validate_phone(payload.phone)
     student = (
         db.query(Student)
@@ -582,7 +592,10 @@ def my_orders(
 # ---------- Cashfree payments (Phase 4) ----------
 @router.post("/payments/create-order", status_code=201)
 def student_create_order(payload: StudentCreateOrderIn, student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    if not cashfree_configured():
+    # Per-tenant Cashfree keys (DB first, env fallback); honest 503 when
+    # the tenant has neither.
+    cf_app_id, cf_secret, cf_env = resolve_tenant_cashfree(db, student.tenant_id)
+    if not (cf_app_id and cf_secret):
         raise HTTPException(status_code=503, detail="Cashfree not configured")
     item_type = payload.item_type.lower()
     if item_type == "course":
@@ -613,7 +626,15 @@ def student_create_order(payload: StudentCreateOrderIn, student: Student = Depen
     db.add(txn)
     db.commit()
     db.refresh(txn)
-    cf = create_cashfree_order(order_id, price, customer_id=f"student-{student.id}", customer_phone=student.phone)
+    cf = create_cashfree_order(
+        order_id,
+        price,
+        customer_id=f"student-{student.id}",
+        customer_phone=student.phone,
+        app_id=cf_app_id,
+        secret=cf_secret,
+        env=cf_env,
+    )
     txn.cashfree_order_id = cf.get("cf_order_id") or cf.get("order_id") or ""
     txn.payment_session_id = cf.get("payment_session_id") or ""
     db.commit()
@@ -634,7 +655,8 @@ def student_create_order(payload: StudentCreateOrderIn, student: Student = Depen
 
 @router.post("/payments/verify")
 def student_verify_payment(payload: StudentVerifyIn, student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    if not cashfree_configured():
+    cf_app_id, cf_secret, cf_env = resolve_tenant_cashfree(db, student.tenant_id)
+    if not (cf_app_id and cf_secret):
         raise HTTPException(status_code=503, detail="Cashfree not configured")
     txn = (
         db.query(PaymentTransaction)
@@ -649,7 +671,9 @@ def student_verify_payment(payload: StudentVerifyIn, student: Student = Depends(
         raise HTTPException(status_code=404, detail="Payment not found")
     if not txn.cashfree_order_id:
         return {"order_id": txn.order_id, "status": txn.status}
-    payments = fetch_cashfree_payments(txn.cashfree_order_id)
+    payments = fetch_cashfree_payments(
+        txn.cashfree_order_id, app_id=cf_app_id, secret=cf_secret, env=cf_env
+    )
     paid = any(
         str(p.get("payment_status") or p.get("paymentStatus") or "").upper() == "SUCCESS"
         for p in payments

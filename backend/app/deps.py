@@ -60,6 +60,26 @@ def get_current_student(
     return student
 
 
+def get_platform_admin(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> dict:
+    """Platform-admin auth: JWT with sub == "platform_admin" and role ==
+    "platform_admin" (see security.create_platform_token).
+
+    Tenant-admin tokens (numeric sub) and student tokens (sub
+    "student:<id>", role "student") are rejected with 401.
+    """
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    try:
+        payload = decode_token(credentials.credentials)
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    if payload.get("sub") != "platform_admin" or payload.get("role") != "platform_admin":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return payload
+
+
 def get_tenant(db: Session, tenant_id: int) -> Tenant:
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if tenant is None:

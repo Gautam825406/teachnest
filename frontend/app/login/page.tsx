@@ -103,6 +103,9 @@ export default function LoginPage() {
         <p className="mt-4 text-center text-sm text-stone-500">
           No account yet? <Link href="/signup" className="font-medium text-brand-700 hover:underline dark:text-brand-300">Create your institute account</Link>
         </p>
+        <p className="mt-2 text-center text-xs text-stone-400 dark:text-stone-500">
+          <Link href="/super-admin/login" className="hover:underline">Platform Super Admin</Link>
+        </p>
       </div>
     </div>
   );

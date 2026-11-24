@@ -22,7 +22,61 @@ class Tenant(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     org_code = Column(String(8), unique=True, nullable=False, index=True)
+    # Platform admin can suspend an institute: its admin + student logins
+    # are then rejected with 403 (see routers/auth.py and routers/student.py).
+    # Existing sessions are NOT revoked — JWTs are stateless and stay valid
+    # until they expire.
+    suspended = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ---------- Platform (Super Admin) ----------
+class SubscriptionPlan(Base):
+    """A platform subscription plan sold to institutes.
+
+    Prices are in INR. The two seeded defaults (Starter ₹0, Growth
+    ₹999/mo) are placeholders the platform admin can edit from the
+    platform panel — they are the only prices invented here.
+    features is a JSON-encoded list of strings.
+    """
+    __tablename__ = "subscription_plans"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    monthly_price_inr = Column(Float, default=0.0, nullable=False)
+    yearly_price_inr = Column(Float, default=0.0, nullable=False)
+    features = Column(Text, default="[]", nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class TenantSubscription(Base):
+    """One institute's current subscription (one row per tenant)."""
+    __tablename__ = "tenant_subscriptions"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), unique=True, nullable=False, index=True)
+    plan_id = Column(Integer, ForeignKey("subscription_plans.id"), nullable=False, index=True)
+    billing_cycle = Column(String(20), default="monthly", nullable=False)  # monthly|yearly
+    status = Column(String(20), default="active", nullable=False)  # trial|active|past_due|cancelled
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    ends_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class TenantCashfreeCredential(Base):
+    """Per-tenant Cashfree PG keys, Fernet-encrypted (see provider_keys.py).
+
+    One row per tenant. When present it wins over the global
+    CASHFREE_APP_ID / CASHFREE_SECRET_KEY environment variables. The raw
+    keys are never stored in plaintext, never logged, never returned —
+    only a masked app-id preview is ever exposed.
+    """
+    __tablename__ = "tenant_cashfree_credentials"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), unique=True, nullable=False, index=True)
+    encrypted_app_id = Column(Text, default="", nullable=False)
+    encrypted_secret = Column(Text, default="", nullable=False)
+    environment = Column(String(20), default="sandbox", nullable=False)  # sandbox|prod
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
 class User(Base):

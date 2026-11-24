@@ -63,6 +63,11 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == payload.username).first()
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+    # Suspension is enforced at login only: existing sessions are NOT
+    # revoked — JWTs are stateless and stay valid until they expire.
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    if tenant is not None and tenant.suspended:
+        raise HTTPException(status_code=403, detail="Institute suspended")
     return _auth_response(user, db)
 
 

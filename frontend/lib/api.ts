@@ -670,3 +670,169 @@ export const liveConfigApi = {
   get: () => apiFetch<LiveConfig>("/live/config"),
 };
 
+/* ---------------- Platform (Super Admin) ----------------
+   Platform-admin JWTs are DIFFERENT from tenant tokens and live under
+   their own localStorage key ("tn_platform_token"). Never reuse the
+   tenant token ("cw_token") for platform calls, and never clear the
+   tenant session from platform code. */
+
+export const PLATFORM_TOKEN_KEY = "tn_platform_token";
+
+export function getPlatformToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(PLATFORM_TOKEN_KEY);
+}
+
+export function savePlatformAuth(token: string, username: string) {
+  localStorage.setItem(PLATFORM_TOKEN_KEY, token);
+  localStorage.setItem("tn_platform_username", username);
+}
+
+export function getPlatformUsername(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("tn_platform_username");
+}
+
+export function clearPlatformAuth() {
+  localStorage.removeItem(PLATFORM_TOKEN_KEY);
+  localStorage.removeItem("tn_platform_username");
+}
+
+export async function platformFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getPlatformToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (options.headers) {
+    Object.entries(options.headers as Record<string, string>).forEach(([k, v]) => { headers[k] = v; });
+  }
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (res.status === 401) {
+    clearPlatformAuth();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/super-admin/login")) {
+      window.location.href = "/super-admin/login";
+    }
+    throw new ApiError(401, "Session has expired. Please log in again.");
+  }
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      msg = (data as { detail?: string; message?: string }).detail ||
+        (data as { detail?: string; message?: string }).message || msg;
+    } catch { /* keep default */ }
+    throw new ApiError(res.status, msg);
+  }
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : (undefined as T);
+}
+
+export interface PlatformStats {
+  institutes: number;
+  active_subscriptions: number;
+  students: number;
+  orders: number;
+  total_revenue: number;
+}
+
+export interface PlatformSubscription {
+  id?: number | string;
+  tenant_id?: number | string;
+  plan_id?: number | string;
+  plan_name?: string | null;
+  billing_cycle?: string;
+  status?: string;
+  started_at?: string | null;
+  ends_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface PlatformCashfreeStatus {
+  configured?: boolean;
+  source?: string;
+  environment?: string;
+  masked_app_id?: string;
+  masked?: string;
+}
+
+export interface PlatformInstitute {
+  id: number | string;
+  name: string;
+  org_code: string;
+  suspended?: boolean;
+  created_at?: string | null;
+  counts?: { users?: number; students?: number; courses?: number; orders?: number };
+  subscription?: PlatformSubscription | null;
+  cashfree?: PlatformCashfreeStatus | null;
+  admins?: { id?: number | string; username?: string; email?: string; role?: string }[];
+}
+
+export interface PlatformPlan {
+  id: number | string;
+  name: string;
+  monthly_price_inr?: number;
+  yearly_price_inr?: number;
+  features?: string[] | string;
+  active?: boolean;
+  created_at?: string | null;
+}
+
+/** Features may arrive as a JSON array or a plain string — normalise to a list. */
+export function platformPlanFeatures(plan: PlatformPlan): string[] {
+  const f = plan.features;
+  if (Array.isArray(f)) return f;
+  if (typeof f === "string") {
+    try {
+      const parsed = JSON.parse(f);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch { /* not JSON — treat as comma-separated below */ }
+    return f.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+export interface InstituteCreateResult {
+  tenant_id?: number | string;
+  institute_name?: string;
+  org_code: string;
+  admin_username: string;
+  admin_name?: string;
+  email?: string;
+}
+
+export const platformApi = {
+  login: (username: string, password: string) =>
+    platformFetch<{ access_token: string; token_type?: string }>("/platform/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+  stats: () => platformFetch<PlatformStats>("/platform/stats"),
+  institutes: {
+    list: (q = "", skip = 0, limit = 50) => {
+      const params = new URLSearchParams({ skip: String(skip), limit: String(limit) });
+      if (q.trim()) params.set("q", q.trim());
+      return platformFetch<{ items: PlatformInstitute[]; total: number; skip: number; limit: number }>(
+        `/platform/institutes?${params.toString()}`
+      );
+    },
+    get: (id: number | string) => platformFetch<PlatformInstitute>(`/platform/institutes/${id}`),
+    create: (body: { institute_name: string; admin_name: string; admin_username: string; email: string; phone?: string; password: string }) =>
+      platformFetch<InstituteCreateResult>("/platform/institutes", { method: "POST", body: JSON.stringify(body) }),
+    setStatus: (id: number | string, suspended: boolean) =>
+      platformFetch<{ id: number | string; org_code?: string; suspended: boolean }>(`/platform/institutes/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ suspended }),
+      }),
+    assignSubscription: (id: number | string, body: { plan_id: number | string; billing_cycle: "monthly" | "yearly"; status: string }) =>
+      platformFetch<PlatformSubscription>(`/platform/institutes/${id}/subscription`, { method: "POST", body: JSON.stringify(body) }),
+  },
+  plans: {
+    list: () => platformFetch<{ plans: PlatformPlan[] } | PlatformPlan[]>("/platform/plans"),
+    create: (body: { name: string; monthly_price_inr: number; yearly_price_inr: number; features: string[]; active?: boolean }) =>
+      platformFetch<PlatformPlan>("/platform/plans", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number | string, body: { name?: string; monthly_price_inr?: number; yearly_price_inr?: number; features?: string[]; active?: boolean }) =>
+      platformFetch<PlatformPlan>(`/platform/plans/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    remove: (id: number | string) => platformFetch<PlatformPlan>(`/platform/plans/${id}`, { method: "DELETE" }),
+  },
+};
+

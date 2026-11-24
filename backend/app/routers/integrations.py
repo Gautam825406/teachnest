@@ -37,6 +37,7 @@ from ..models import (
     ProviderCredential,
     Question,
     Student,
+    TenantCashfreeCredential,
     TestSeries,
     User,
 )
@@ -46,6 +47,7 @@ from ..provider_keys import (
     provider_key_status,
     resolve_provider_key,
 )
+from ..tenant_cashfree import resolve_tenant_cashfree, tenant_cashfree_status
 from ..schemas import AIGenerationOut, IntegrationLogOut, PaymentTransactionOut
 
 router = APIRouter(tags=["phase4-integrations"])
@@ -78,34 +80,50 @@ def txn_out(txn: PaymentTransaction) -> dict:
     }
 
 
-def cashfree_base_url() -> str:
+def cashfree_base_url(env: str | None = None) -> str:
+    """Cashfree PG base URL for an environment ("SANDBOX"/"PROD", either
+    case). Defaults to the global CASHFREE_ENV."""
     return (
         "https://api.cashfree.com/pg"
-        if cfg.cashfree_env() == "PROD"
+        if (env or cfg.cashfree_env()).upper() == "PROD"
         else "https://sandbox.cashfree.com/pg"
     )
 
 
-def cashfree_headers() -> dict:
+def cashfree_headers(app_id: str | None = None, secret: str | None = None) -> dict:
+    """Auth headers for explicit credentials; falls back to the global
+    env keys when none are given (backwards compatible)."""
     return {
         "x-api-version": "2023-08-01",
-        "x-client-id": cfg.cashfree_app_id(),
-        "x-client-secret": cfg.cashfree_secret_key(),
+        "x-client-id": app_id if app_id is not None else cfg.cashfree_app_id(),
+        "x-client-secret": secret if secret is not None else cfg.cashfree_secret_key(),
         "Content-Type": "application/json",
     }
 
 
-def cashfree_configured() -> bool:
+def cashfree_configured(app_id: str | None = None, secret: str | None = None) -> bool:
+    """True when the given credentials (or, when omitted, the global env
+    keys) are both present."""
+    if app_id is not None or secret is not None:
+        return bool(app_id and secret)
     return bool(cfg.cashfree_app_id() and cfg.cashfree_secret_key())
 
 
-def _require_cashfree() -> None:
-    if not cashfree_configured():
-        raise HTTPException(status_code=503, detail="Cashfree not configured")
+def create_cashfree_order(
+    order_id: str,
+    amount_rupees: float,
+    customer_id: str,
+    customer_phone: str = "",
+    *,
+    app_id: str | None = None,
+    secret: str | None = None,
+    env: str | None = None,
+) -> dict:
+    """Create an order at Cashfree. Returns the parsed Cashfree response.
 
-
-def create_cashfree_order(order_id: str, amount_rupees: float, customer_id: str, customer_phone: str = "") -> dict:
-    """Create an order at Cashfree. Returns the parsed Cashfree response."""
+    Credentials are explicit (per-tenant) when given, otherwise the
+    global env keys are used.
+    """
     payload: dict = {
         "order_id": order_id,
         "order_amount": round(float(amount_rupees), 2),
@@ -116,8 +134,8 @@ def create_cashfree_order(order_id: str, amount_rupees: float, customer_id: str,
         payload["customer_details"]["customer_phone"] = customer_phone
     try:
         resp = httpx.post(
-            f"{cashfree_base_url()}/orders",
-            headers=cashfree_headers(),
+            f"{cashfree_base_url(env)}/orders",
+            headers=cashfree_headers(app_id, secret),
             json=payload,
             timeout=30,
         )
@@ -128,12 +146,18 @@ def create_cashfree_order(order_id: str, amount_rupees: float, customer_id: str,
     return resp.json()
 
 
-def fetch_cashfree_payments(cashfree_order_id: str) -> list:
+def fetch_cashfree_payments(
+    cashfree_order_id: str,
+    *,
+    app_id: str | None = None,
+    secret: str | None = None,
+    env: str | None = None,
+) -> list:
     """GET /pg/orders/{cf_order_id}/payments — list of payment attempts."""
     try:
         resp = httpx.get(
-            f"{cashfree_base_url()}/orders/{cashfree_order_id}/payments",
-            headers=cashfree_headers(),
+            f"{cashfree_base_url(env)}/orders/{cashfree_order_id}/payments",
+            headers=cashfree_headers(app_id, secret),
             timeout=30,
         )
     except httpx.HTTPError as exc:
@@ -337,6 +361,93 @@ def test_api_key(provider: str, user: User = Depends(get_current_user), db: Sess
     return {"provider": provider, "ok": False, "message": f"{provider} returned HTTP {resp.status_code}."}
 
 
+# ---------- 1c. Per-tenant Cashfree credentials (admin panel) ----------
+# Saved keys are Fernet-encrypted per tenant (see tenant_cashfree.py)
+# and take precedence over the global CASHFREE_APP_ID / CASHFREE_SECRET_KEY
+# env vars. No full key is ever returned — only a masked app-id preview.
+class CashfreeKeysIn(BaseModel):
+    app_id: str
+    secret: str
+    environment: str = "sandbox"
+
+
+@router.get("/integrations/cashfree")
+def get_cashfree_keys(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(user)
+    return tenant_cashfree_status(db, user.tenant_id)
+
+
+@router.put("/integrations/cashfree")
+def save_cashfree_keys(payload: CashfreeKeysIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(user)
+    app_id = (payload.app_id or "").strip()
+    secret = (payload.secret or "").strip()
+    environment = (payload.environment or "sandbox").lower()
+    if len(app_id) < 5 or len(secret) < 5:
+        raise HTTPException(status_code=400, detail="app_id and secret must each be at least 5 characters")
+    if environment not in ("sandbox", "prod"):
+        raise HTTPException(status_code=400, detail="environment must be sandbox|prod")
+    row = (
+        db.query(TenantCashfreeCredential)
+        .filter(TenantCashfreeCredential.tenant_id == user.tenant_id)
+        .first()
+    )
+    if row is None:
+        row = TenantCashfreeCredential(tenant_id=user.tenant_id)
+        db.add(row)
+    row.encrypted_app_id = encrypt_value(app_id)
+    row.encrypted_secret = encrypt_value(secret)
+    row.environment = environment
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(row)
+    return tenant_cashfree_status(db, user.tenant_id)
+
+
+@router.delete("/integrations/cashfree")
+def delete_cashfree_keys(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(user)
+    row = (
+        db.query(TenantCashfreeCredential)
+        .filter(TenantCashfreeCredential.tenant_id == user.tenant_id)
+        .first()
+    )
+    if row is not None:
+        db.delete(row)
+        db.commit()
+    return tenant_cashfree_status(db, user.tenant_id)
+
+
+@router.post("/integrations/cashfree/test")
+def test_cashfree_keys(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Validate the tenant's Cashfree keys WITHOUT creating a real order:
+    GET /pg/orders/TEST-KEY-CHECK. Cashfree answers 404 for the unknown
+    order when the keys are accepted, 401/403 when they are rejected.
+    Never returns a key and never raises 500 for a transport failure."""
+    _require_admin(user)
+    app_id, secret, env = resolve_tenant_cashfree(db, user.tenant_id)
+    if not (app_id and secret):
+        raise HTTPException(status_code=503, detail="Cashfree not configured")
+    base = "https://api.cashfree.com/pg" if env == "prod" else "https://sandbox.cashfree.com/pg"
+    try:
+        resp = httpx.get(
+            f"{base}/orders/TEST-KEY-CHECK",
+            headers={
+                "x-api-version": "2023-08-01",
+                "x-client-id": app_id,
+                "x-client-secret": secret,
+            },
+            timeout=30,
+        )
+    except Exception as exc:  # HTTPError + InvalidURL/proxy/DNS/SSL failures
+        return {"ok": False, "message": f"Could not reach Cashfree: {exc}"}
+    if resp.status_code == 404:
+        return {"ok": True, "message": "Cashfree keys valid"}
+    if resp.status_code in (401, 403):
+        return {"ok": False, "message": "Cashfree rejected the keys"}
+    return {"ok": False, "message": f"Cashfree returned HTTP {resp.status_code}."}
+
+
 # ---------- 2. Cashfree payments (admin) ----------
 class CreateOrderIn(BaseModel):
     item_type: str  # course|bundle|wallet|storage
@@ -347,7 +458,11 @@ class CreateOrderIn(BaseModel):
 
 @router.post("/payments/create-order", status_code=201)
 def admin_create_order(payload: CreateOrderIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    _require_cashfree()
+    # Per-tenant Cashfree keys (DB first, env fallback); honest 503 when
+    # the tenant has neither.
+    cf_app_id, cf_secret, cf_env = resolve_tenant_cashfree(db, user.tenant_id)
+    if not (cf_app_id and cf_secret):
+        raise HTTPException(status_code=503, detail="Cashfree not configured")
     item_type = payload.item_type.lower()
     if item_type not in ("course", "bundle", "wallet", "storage"):
         raise HTTPException(status_code=400, detail="item_type must be course|bundle|wallet|storage")
@@ -387,7 +502,15 @@ def admin_create_order(payload: CreateOrderIn, user: User = Depends(get_current_
     db.add(txn)
     db.commit()
     db.refresh(txn)
-    cf = create_cashfree_order(order_id, amount_rupees, customer_id=f"tenant-{user.tenant_id}-{'student-' + str(student.id) if student else 'admin'}", customer_phone=student.phone if student else "")
+    cf = create_cashfree_order(
+        order_id,
+        amount_rupees,
+        customer_id=f"tenant-{user.tenant_id}-{'student-' + str(student.id) if student else 'admin'}",
+        customer_phone=student.phone if student else "",
+        app_id=cf_app_id,
+        secret=cf_secret,
+        env=cf_env,
+    )
     txn.cashfree_order_id = cf.get("cf_order_id") or cf.get("order_id") or ""
     txn.payment_session_id = cf.get("payment_session_id") or ""
     db.commit()
@@ -417,8 +540,6 @@ async def cashfree_webhook(request: Request, db: Session = Depends(get_db)):
     raw = await request.body()
     signature = request.headers.get("x-webhook-signature", "")
     timestamp = request.headers.get("x-webhook-timestamp", "")
-    if not verify_cashfree_signature(cfg.cashfree_secret_key(), timestamp, raw, signature):
-        raise HTTPException(status_code=401, detail="Invalid webhook signature")
     try:
         payload = json.loads(raw.decode("utf-8") or "{}")
     except json.JSONDecodeError:
@@ -427,12 +548,22 @@ async def cashfree_webhook(request: Request, db: Session = Depends(get_db)):
     order_data = data.get("order") or {}
     payment_data = data.get("payment") or {}
     order_id = order_data.get("order_id") or payload.get("order_id") or ""
+    # Resolve the tenant from the stored order BEFORE verifying the
+    # signature, so the tenant's own Cashfree secret is used (DB first,
+    # env fallback). For an unknown order there is no tenant to resolve,
+    # so the global env secret is used, as before.
+    txn = db.query(PaymentTransaction).filter(PaymentTransaction.order_id == order_id).first() if order_id else None
+    if txn is not None:
+        _app_id, secret, _env = resolve_tenant_cashfree(db, txn.tenant_id)
+    else:
+        secret = cfg.cashfree_secret_key()
+    if not verify_cashfree_signature(secret, timestamp, raw, signature):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
     event_type = str(payload.get("type") or "")
     payment_status = str(payment_data.get("payment_status") or payment_data.get("paymentStatus") or "")
     is_success = "PAYMENT_SUCCESS" in event_type.upper() or payment_status.upper() == "SUCCESS"
     if not order_id:
         return {"status": "ignored", "reason": "no order_id"}
-    txn = db.query(PaymentTransaction).filter(PaymentTransaction.order_id == order_id).first()
     if txn is None:
         return {"status": "ignored", "reason": "unknown order_id"}
     if is_success:
@@ -446,13 +577,17 @@ async def cashfree_webhook(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/payments/cashfree/return")
 def cashfree_return(order_id: str = Query(...), db: Session = Depends(get_db)):
-    _require_cashfree()
     txn = db.query(PaymentTransaction).filter(PaymentTransaction.order_id == order_id).first()
     if txn is None:
         raise HTTPException(status_code=404, detail="Payment not found")
+    cf_app_id, cf_secret, cf_env = resolve_tenant_cashfree(db, txn.tenant_id)
+    if not (cf_app_id and cf_secret):
+        raise HTTPException(status_code=503, detail="Cashfree not configured")
     if not txn.cashfree_order_id:
         return {"order_id": order_id, "status": txn.status}
-    payments = fetch_cashfree_payments(txn.cashfree_order_id)
+    payments = fetch_cashfree_payments(
+        txn.cashfree_order_id, app_id=cf_app_id, secret=cf_secret, env=cf_env
+    )
     paid = any(
         str(p.get("payment_status") or p.get("paymentStatus") or "").upper() == "SUCCESS"
         for p in payments
