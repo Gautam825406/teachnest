@@ -25,10 +25,10 @@ import { CountUp, Reveal, useInView } from "@/components/motion";
 import { getToken } from "@/lib/api";
 
 /** Student Android app (APK) download link shown in the footer.
- *  Updated whenever a new EAS preview build is published (currently v3.0.0;
- *  v3.1.0 with the new UI + Doubt Engine replaces this link when it lands). */
+ *  Updated whenever a new EAS preview build is published (currently v3.1.0 —
+ *  new UI, Doubt Engine, password registration; build 7a4c546b). */
 const ANDROID_APK_URL =
-  "https://expo.dev/artifacts/eas/TvuGGsPtyhDyJwULgRtgwCEg6jEPz3xJC1Z4AgChi7Q.apk";
+  "https://expo.dev/artifacts/eas/cC0VQAS9Ob5BH0lZmPNWW-5MjJRJX-UuoVKP8U0-QuE.apk";
 
 /** Shared hover micro-interaction for landing-page buttons. */
 const BTN_HOVER = "duration-300 ease-out hover:scale-[1.02] hover:shadow-md active:scale-[0.98]";
@@ -641,7 +641,7 @@ export default function LandingPage() {
                 <Smartphone size={16} aria-hidden /> Download Android app (APK)
               </a>
               <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
-                For students — install directly, no Play Store needed. v3.0.0, ~65 MB.
+                For students — install directly, no Play Store needed. v3.1.0, ~65 MB.
               </p>
             </div>
             <div>

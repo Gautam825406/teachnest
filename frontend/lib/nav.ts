@@ -30,6 +30,7 @@ export const NAV: NavGroup[] = [
     group: "TESTING & RESOURCES",
     items: [
       { label: "Test Series", href: "/dashboard/test-series" },
+      { label: "Student Doubts", href: "/dashboard/doubts" },
       { label: "AI Question Paper Generator", href: "/dashboard/ai-generator" },
       { label: "Video Assignments", href: "/dashboard/video-assignments" },
       { label: "Test Assignments", href: "/dashboard/test-assignments" },

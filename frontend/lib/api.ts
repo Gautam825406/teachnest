@@ -519,6 +519,30 @@ export interface ApiKeyStatus {
   updated_at?: string | null;
 }
 
+export interface Doubt {
+  id: number;
+  student_id?: number;
+  student_name?: string;
+  subject: string;
+  topic?: string | null;
+  question: string;
+  ai_answer?: string | null;
+  ai_provider?: string | null;
+  teacher_reply?: string | null;
+  teacher_name?: string | null;
+  status: "open" | "ai_answered" | "answered" | string;
+  created_at?: string | null;
+  answered_at?: string | null;
+}
+
+export const doubtsApi = {
+  list: (status?: string) =>
+    apiFetch<Paged<Doubt> | Doubt[]>(`/teacher/doubts${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+  get: (id: number | string) => apiFetch<Doubt>(`/teacher/doubts/${id}`),
+  reply: (id: number | string, reply: string) =>
+    apiFetch<Doubt>(`/teacher/doubts/${id}/reply`, { method: "POST", body: JSON.stringify({ reply }) }),
+};
+
 export const apiKeysApi = {
   list: () => apiFetch<{ keys: ApiKeyStatus[] }>("/integrations/api-keys"),
   save: (provider: string, apiKey: string) =>

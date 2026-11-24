@@ -18,6 +18,10 @@ interface AuthState {
   otpDemoValue: string | null;
   requestOtp: (orgCode: string, phone: string) => Promise<string | null>;
   verifyOtp: (otp: string, name?: string) => Promise<void>;
+  /** Create an account with a password (no OTP) and log in directly. */
+  register: (orgCode: string, name: string, phone: string, password: string) => Promise<void>;
+  /** Log in a registered student with a password (no OTP). */
+  loginWithPassword: (orgCode: string, phone: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -78,6 +82,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [orgCode, phone],
   );
 
+  const storeSession = useCallback(async (accessToken: string, nextStudent: Student) => {
+    setAuthToken(accessToken);
+    setToken(accessToken);
+    setStudent(nextStudent);
+    await AsyncStorage.setItem(TOKEN_KEY, accessToken);
+    await AsyncStorage.setItem(STUDENT_KEY, JSON.stringify(nextStudent));
+  }, []);
+
+  const register = useCallback(
+    async (org: string, name: string, ph: string, password: string) => {
+      const res = await api.registerStudent(org, name, ph, password);
+      setOrgCode(org);
+      setPhone(ph);
+      await storeSession(res.access_token, res.student);
+    },
+    [storeSession],
+  );
+
+  const loginWithPassword = useCallback(
+    async (org: string, ph: string, password: string) => {
+      const res = await api.loginWithPassword(org, ph, password);
+      setOrgCode(org);
+      setPhone(ph);
+      await storeSession(res.access_token, res.student);
+    },
+    [storeSession],
+  );
+
   const logout = useCallback(async () => {
     setAuthToken(null);
     setToken(null);
@@ -86,8 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ token, student, loading, orgCode, phone, otpDemo, otpDemoValue, requestOtp, verifyOtp, logout }),
-    [token, student, loading, orgCode, phone, otpDemo, otpDemoValue, requestOtp, verifyOtp, logout],
+    () => ({
+      token,
+      student,
+      loading,
+      orgCode,
+      phone,
+      otpDemo,
+      otpDemoValue,
+      requestOtp,
+      verifyOtp,
+      register,
+      loginWithPassword,
+      logout,
+    }),
+    [token, student, loading, orgCode, phone, otpDemo, otpDemoValue, requestOtp, verifyOtp, register, loginWithPassword, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

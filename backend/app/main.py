@@ -15,6 +15,7 @@ from .routers import (
     course_content,
     courses,
     dashboard,
+    doubts,
     engagement,
     integrations,
     orders,
@@ -83,3 +84,5 @@ app.include_router(engagement.router, prefix="/api")
 app.include_router(student.router, prefix="/api")
 # Phase 4 (Cashfree payments, AI, WhatsApp, push, live)
 app.include_router(integrations.router, prefix="/api")
+# Doubt Engine (students ask, AI + teacher answer)
+app.include_router(doubts.router, prefix="/api")

@@ -3,8 +3,10 @@
 OTP auth: demo OTP "123456" when no SMS provider is configured. When
 MSG91_API_KEY is set the OTP is sent by MSG91 SMS (and verified against
 the stored OTP); Exotel SMS is used as a fallback provider when its
-credentials are set. Demo purchase creates a real SUCCESS Order with a
-DEMO- transaction id; real purchases go through Cashfree (Phase 4).
+credentials are set. Password auth (v3.1.0): POST /student/auth/register
+and POST /student/auth/login create / sign in a student with a bcrypt
+password — no OTP needed. Demo purchase creates a real SUCCESS Order with
+a DEMO- transaction id; real purchases go through Cashfree (Phase 4).
 All endpoints are tenant-scoped to the authenticated student's tenant.
 """
 import secrets
@@ -21,6 +23,7 @@ from .. import config as cfg
 from ..config import ALGORITHM, SECRET_KEY
 from ..database import get_db
 from ..deps import get_current_student
+from ..security import hash_password, verify_password
 from .integrations import (
     cashfree_configured,
     create_cashfree_order,
@@ -128,6 +131,19 @@ class VerifyOtpIn(BaseModel):
     phone: str
     otp: str
     name: str | None = None
+
+
+class RegisterIn(BaseModel):
+    org_code: str
+    name: str
+    phone: str
+    password: str
+
+
+class PasswordLoginIn(BaseModel):
+    org_code: str
+    phone: str
+    password: str
 
 
 class AttemptIn(BaseModel):
@@ -296,6 +312,73 @@ def verify_otp(payload: VerifyOtpIn, db: Session = Depends(get_db)):
         db.add(student)
         db.commit()
         db.refresh(student)
+    return {
+        "access_token": _student_token(student),
+        "token_type": "bearer",
+        "student": _student_profile(db, student),
+    }
+
+
+# ---------- Auth (password; no OTP needed) ----------
+@router.post("/auth/register", status_code=201)
+def register_password(payload: RegisterIn, db: Session = Depends(get_db)):
+    """Create a student account with a password — no OTP. Returns the same
+    token shape as OTP verify, so the app logs the student in directly."""
+    tenant = _tenant_by_org_code(db, payload.org_code)
+    _validate_phone(payload.phone)
+    name = (payload.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    if len(payload.password or "") < 6:
+        raise HTTPException(status_code=400, detail="password must be at least 6 characters")
+    existing = (
+        db.query(Student)
+        .filter(Student.tenant_id == tenant.id, Student.phone == payload.phone)
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="An account already exists for this mobile number — log in instead.",
+        )
+    student = Student(
+        tenant_id=tenant.id,
+        name=name,
+        phone=payload.phone,
+        password_hash=hash_password(payload.password),
+    )
+    db.add(student)
+    db.commit()
+    db.refresh(student)
+    return {
+        "access_token": _student_token(student),
+        "token_type": "bearer",
+        "student": _student_profile(db, student),
+    }
+
+
+@router.post("/auth/login")
+def login_password(payload: PasswordLoginIn, db: Session = Depends(get_db)):
+    """Log in a registered student with a password (no OTP)."""
+    tenant = _tenant_by_org_code(db, payload.org_code)
+    _validate_phone(payload.phone)
+    student = (
+        db.query(Student)
+        .filter(Student.tenant_id == tenant.id, Student.phone == payload.phone)
+        .first()
+    )
+    if student is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No account found for this mobile number — create an account or log in with OTP.",
+        )
+    if not student.password_hash:
+        raise HTTPException(
+            status_code=401,
+            detail="This account has no password yet — log in with OTP instead.",
+        )
+    if not verify_password(payload.password or "", student.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect password")
     return {
         "access_token": _student_token(student),
         "token_type": "bearer",

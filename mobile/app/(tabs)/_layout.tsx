@@ -50,6 +50,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="doubts"
+        options={{
+          title: 'Doubts',
+          tabBarIcon: ({ color, size }) => <Ionicons color={color} name="help-circle" size={size} />,
+        }}
+      />
+      <Tabs.Screen
         name="live"
         options={{
           title: 'Live',

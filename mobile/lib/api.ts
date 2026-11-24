@@ -154,12 +154,35 @@ export interface OtpResponse {
   message: string;
 }
 
+// ---- Doubt Engine ----
+// status: open (waiting for teacher) | ai_answered (instant AI answer, teacher reply still pending) | answered (teacher replied)
+export interface Doubt {
+  id: number;
+  student_id?: number;
+  student_name?: string;
+  subject: string;
+  topic?: string | null;
+  question: string;
+  ai_answer?: string | null;
+  ai_provider?: string | null;
+  teacher_reply?: string | null;
+  teacher_name?: string | null;
+  status: 'open' | 'ai_answered' | 'answered' | string;
+  created_at?: string | null;
+  answered_at?: string | null;
+}
+
 // ---- Endpoints ----
 export const api = {
   requestOtp: (org_code: string, phone: string) =>
     post<OtpResponse>('/student/auth/request-otp', { org_code, phone }),
   verifyOtp: (org_code: string, phone: string, otp: string, name?: string) =>
     post<{ access_token: string; token_type: string; student: Student }>('/student/auth/verify', { org_code, phone, otp, name }),
+  // Password auth (no OTP): create an account, or log in with a password.
+  registerStudent: (org_code: string, name: string, phone: string, password: string) =>
+    post<{ access_token: string; token_type: string; student: Student }>('/student/auth/register', { org_code, name, phone, password }),
+  loginWithPassword: (org_code: string, phone: string, password: string) =>
+    post<{ access_token: string; token_type: string; student: Student }>('/student/auth/login', { org_code, phone, password }),
   me: () => get<Student>('/student/me'),
   home: () => get<HomeData>('/student/home'),
   courses: (page = 1, per_page = 20) => get<Paged<Course>>(`/student/courses?page=${page}&per_page=${per_page}`),
@@ -198,6 +221,12 @@ export const api = {
   bundles: () => get<Paged<Bundle> | Bundle[]>('/student/bundles'),
   enquiry: (message: string, enquiry_type_id?: number) =>
     post('/student/enquiries', { message, enquiry_type_id }),
+  // ---- Doubt Engine ----
+  myDoubts: () => get<Paged<Doubt> | Doubt[]>('/student/doubts'),
+  doubtSubjects: () => get<{ subjects: string[] }>('/student/doubts/subjects'),
+  askDoubt: (subject: string, question: string, topic?: string) =>
+    post<Doubt>('/student/doubts', { subject, topic: topic ?? '', question }),
+  doubtDetail: (id: number | string) => get<Doubt>(`/student/doubts/${id}`),
 };
 
 export function toArray<T>(v: Paged<T> | T[] | undefined | null): T[] {

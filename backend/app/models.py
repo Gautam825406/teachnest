@@ -120,6 +120,9 @@ class Student(Base):
     email = Column(String(255), default="", nullable=False)
     city = Column(String(255), default="", nullable=False)
     state = Column(String(255), default="", nullable=False)
+    # bcrypt hash (same scheme as staff passwords, see security.py).
+    # Empty for accounts created via OTP that never set a password.
+    password_hash = Column(String(255), default="", nullable=False)
     signup_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     # List of enrolled course ids (JSON, Postgres-compatible).
     course_ids = Column(JSON, default=list, nullable=False)
@@ -622,3 +625,31 @@ class CoursePackage(Base):
     mrp = Column(Float, default=0.0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ---------- Doubt Engine (student asks, AI + teacher answer) ----------
+class Doubt(Base):
+    """A student's question.
+
+    status: "open" (no answer yet) | "ai_answered" (instant AI answer,
+    teacher reply still pending) | "answered" (teacher replied).
+    ai_answer is labelled as AI-generated in every UI that shows it; it is
+    never presented as a teacher reply. teacher_reply is written by a real
+    teacher/admin from the admin panel.
+    """
+    __tablename__ = "doubts"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False, index=True)
+    student_name = Column(String(255), default="", nullable=False)
+    subject = Column(String(255), default="", nullable=False)
+    topic = Column(String(255), default="", nullable=False)
+    question = Column(Text, nullable=False)
+    ai_answer = Column(Text, default="", nullable=False)
+    ai_provider = Column(String(50), default="", nullable=False)  # groq|gemini|""
+    teacher_reply = Column(Text, default="", nullable=False)
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    teacher_name = Column(String(255), default="", nullable=False)
+    status = Column(String(20), default="open", nullable=False)  # open|ai_answered|answered
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    answered_at = Column(DateTime, nullable=True)

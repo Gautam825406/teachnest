@@ -1,15 +1,17 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { brand } from '../../config/brand';
 import { radius, theme, type } from '../../config/theme';
 import { PrimaryButton } from '../../components/ui';
 import { useAuth } from '../../lib/AuthContext';
 
 export default function LoginScreen() {
-  const { requestOtp } = useAuth();
+  const { requestOtp, loginWithPassword } = useAuth();
+  const [mode, setMode] = useState<'otp' | 'password'>('otp');
   const [orgCode, setOrgCode] = useState<string>(brand.orgCode);
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -22,10 +24,19 @@ export default function LoginScreen() {
     setBusy(true);
     setError(null);
     try {
+      if (mode === 'password') {
+        if (!password) {
+          setError('Enter your password.');
+          return;
+        }
+        await loginWithPassword(orgCode.trim(), phone.trim(), password);
+        router.replace('/(tabs)');
+        return;
+      }
       await requestOtp(orgCode.trim(), phone.trim());
       router.push('/(auth)/otp');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send OTP. Try again.');
+      setError(e instanceof Error ? e.message : 'Could not sign in. Try again.');
     } finally {
       setBusy(false);
     }
@@ -135,12 +146,54 @@ export default function LoginScreen() {
         {error ? (
           <Text style={{ color: theme.danger, fontSize: 13, marginTop: 8 }}>{error}</Text>
         ) : null}
+        {mode === 'password' ? (
+          <>
+            <Text style={{ color: theme.muted, fontSize: 13, fontWeight: '700', marginTop: 4 }}>
+              Password
+            </Text>
+            <TextInput
+              onBlur={() => setFocusedField(null)}
+              onChangeText={setPassword}
+              onFocus={() => setFocusedField('password')}
+              placeholder="Your account password"
+              placeholderTextColor={theme.muted}
+              secureTextEntry
+              style={[inputStyle('password'), { marginVertical: 12 }]}
+              value={password}
+            />
+          </>
+        ) : null}
         <View style={{ marginTop: 16 }}>
-          <PrimaryButton disabled={busy} label={busy ? 'Sending OTP…' : 'Send OTP'} onPress={submit} />
+          <PrimaryButton
+            disabled={busy}
+            label={busy ? (mode === 'password' ? 'Logging in…' : 'Sending OTP…') : mode === 'password' ? 'Log In' : 'Send OTP'}
+            onPress={submit}
+          />
         </View>
         <Text style={{ color: theme.muted, marginTop: 16, textAlign: 'center', ...type.caption }}>
-          You will receive a 6-digit OTP on your mobile number.
+          {mode === 'password'
+            ? 'Log in with the password you set when creating your account.'
+            : 'You will receive a 6-digit OTP on your mobile number.'}
         </Text>
+        <Pressable
+          onPress={() => {
+            setError(null);
+            setMode(mode === 'password' ? 'otp' : 'password');
+          }}
+          style={{ marginTop: 12 }}
+        >
+          <Text style={{ color: theme.primary, fontSize: 14, fontWeight: '700', textAlign: 'center' }}>
+            {mode === 'password' ? 'Log in with OTP instead' : 'Log in with password'}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push({ params: { org_code: orgCode.trim() }, pathname: '/(auth)/register' })}
+          style={{ marginTop: 12 }}
+        >
+          <Text style={{ color: theme.primary, fontSize: 14, fontWeight: '700', textAlign: 'center' }}>
+            New student? Create account
+          </Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
